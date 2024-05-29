@@ -95,6 +95,7 @@ describe("Perp Open Order Tests", () => {
     TEST_TIMEOUT,
   );
 
+  // this test is passing only when market is created
   it(
     "Open Order",
     async () => {

@@ -190,6 +190,10 @@ export class WriteActions {
           options.contractAddresses.perpMarket,
           options.wallet,
         ),
+        ClearingHouseAbi__factory.connect(
+          options.contractAddresses.clearingHouse,
+          options.wallet,
+        ),
         AccountBalanceAbi__factory.connect(
           options.contractAddresses.accountBalance,
           options.wallet,
