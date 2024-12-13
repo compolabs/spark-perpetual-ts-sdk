@@ -1,322 +1,387 @@
-import { EvmPriceServiceConnection } from "@pythnetwork/pyth-evm-js";
-import { arrayify, Provider, Wallet } from "fuels";
+import { ApolloQueryResult, FetchResult, Observable } from "@apollo/client";
+import {
+  Bech32Address,
+  Provider,
+  Wallet,
+  WalletLocked,
+  WalletUnlocked,
+} from "fuels";
+import { Undefinable } from "tsdef";
 
-import {
-  BETA_CONTRACT_ADDRESSES,
-  DEFAULT_GAS_LIMIT_MULTIPLIER,
-  DEFAULT_GAS_PRICE,
-} from "./constants/addresses";
-import { PythContractAbi__factory } from "./types/pyth";
-import BN from "./utils/BN";
 import { NETWORK_ERROR, NetworkError } from "./utils/NetworkError";
+import { DEFAULT_GAS_LIMIT_MULTIPLIER, DEFAULT_GAS_PRICE } from "./constants";
+import { IndexerApi } from "./IndexerApi";
 import {
+  ActiveOrderReturn,
   Asset,
-  FetchTradesParams,
+  AssetType,
+  CreateOrderParams,
+  CreateOrderWithDepositParams,
+  FulfillOrderManyParams,
+  FulfillOrderManyWithDepositParams,
+  GetActiveOrdersParams,
+  GetOrdersParams,
+  GetTradeEventQueryParams,
+  GetTradeOrderEventsParams,
+  GetUserScoreSnapshotParams,
+  GraphClientConfig,
+  MarketInfo,
+  Markets,
   Options,
   OptionsSpark,
-  PerpAllTraderPosition,
-  PerpMarket,
-  PerpMaxAbsPositionSize,
-  PerpPendingFundingPayment,
-  PerpTrades,
-  SparkPerpetualParams as SparkParams,
+  Order,
+  OrderType,
+  ProtocolFee,
+  SentioApiParams,
+  SparkParams,
+  SpotOrderWithoutTimestamp,
+  TradeOrderEvent,
+  UserInfo,
+  UserInfoParams,
+  UserMarketBalance,
+  UserProtocolFee,
+  Volume,
+  WithdrawAllType,
   WriteTransactionResponse,
 } from "./interface";
 import { ReadActions } from "./ReadActions";
+import { SentioApi } from "./sentioApi";
 import { WriteActions } from "./WriteActions";
 
-const PYTH_URL = "https://hermes.pyth.network";
-
 export class SparkPerpetual {
-  private write = new WriteActions();
-
-  private read: ReadActions;
-
   private providerPromise: Promise<Provider>;
+  private provider?: Provider;
   private options: OptionsSpark;
-  private pythServiceConnection: EvmPriceServiceConnection;
+  private indexerApi?: IndexerApi;
+  private sentioApi?: SentioApi;
 
   constructor(params: SparkParams) {
     this.options = {
-      contractAddresses: params.contractAddresses ?? BETA_CONTRACT_ADDRESSES,
+      contractAddresses: {
+        proxyMarket: "",
+        ...params.contractAddresses,
+      },
       wallet: params.wallet,
       gasPrice: params.gasPrice ?? DEFAULT_GAS_PRICE,
       gasLimitMultiplier:
         params.gasLimitMultiplier ?? DEFAULT_GAS_LIMIT_MULTIPLIER,
     };
 
-    this.read = new ReadActions(params.indexerApiUrl);
-
     this.providerPromise = Provider.create(params.networkUrl);
-
-    this.pythServiceConnection = new EvmPriceServiceConnection(
-      params.pythUrl ?? PYTH_URL,
-      {
-        logger: {
-          error: console.error,
-          warn: console.warn,
-          info: () => undefined,
-          debug: () => undefined,
-          trace: () => undefined,
-        },
-      },
-    );
   }
 
-  depositPerpCollateral = async (
-    asset: Asset,
-    amount: string,
-  ): Promise<WriteTransactionResponse> => {
-    return this.write.depositPerpCollateral(
-      asset.address,
-      amount,
-      this.getApiOptions(),
-    );
-  };
+  private get activeIndexerApi(): IndexerApi {
+    if (!this.indexerApi) {
+      throw new Error("Please set the correct active indexer.");
+    }
+    return this.indexerApi;
+  }
 
-  withdrawPerpCollateral = async (
-    baseToken: Asset,
-    gasToken: Asset,
-    amount: string,
-    tokenPriceFeed: string,
-  ): Promise<WriteTransactionResponse> => {
-    const { priceUpdateData, updateFee } =
-      await this.getPriceFeedUpdateData(tokenPriceFeed);
+  private get activeSentioApi(): SentioApi {
+    if (!this.sentioApi) {
+      throw new Error("Please set the correct active indexer.");
+    }
+    return this.sentioApi;
+  }
 
-    return this.write.withdrawPerpCollateral(
-      baseToken.address,
-      gasToken.address,
-      amount,
-      priceUpdateData,
-      updateFee as BN,
-      this.getApiOptions(),
-    );
-  };
+  async getProvider(): Promise<Provider> {
+    if (!this.provider) {
+      this.provider = await this.providerPromise;
+    }
+    return this.provider;
+  }
 
-  openPerpOrder = async (
-    baseToken: Asset,
-    gasToken: Asset,
-    amount: string,
-    price: string,
-    tokenPriceFeed: string,
-  ): Promise<WriteTransactionResponse> => {
-    const { priceUpdateData, updateFee } =
-      await this.getPriceFeedUpdateData(tokenPriceFeed);
-    return this.write.openPerpOrder(
-      baseToken.address,
-      gasToken.address,
-      amount,
-      price,
-      priceUpdateData,
-      updateFee as BN,
-      this.getApiOptions(),
-    );
-  };
-
-  removePerpOrder = async (
-    assetId: string,
-  ): Promise<WriteTransactionResponse> => {
-    return this.write.removePerpOrder(assetId, this.getApiOptions());
-  };
-
-  fulfillPerpOrder = async (
-    gasToken: Asset,
-    orderId: string,
-    amount: string,
-    tokenPriceFeed: string,
-  ): Promise<WriteTransactionResponse> => {
-    const { priceUpdateData, updateFee } =
-      await this.getPriceFeedUpdateData(tokenPriceFeed);
-
-    return this.write.fulfillPerpOrder(
-      gasToken.address,
-      orderId,
-      amount,
-      priceUpdateData,
-      updateFee as BN,
-      this.getApiOptions(),
-    );
-  };
-
-  fetchPerpTrades = async (
-    params: FetchTradesParams,
-  ): Promise<PerpTrades[]> => {
-    return this.read.fetchPerpTradeEvents(params);
-  };
-
-  fetchPerpCollateralBalance = async (
-    accountAddress: string,
-    asset: Asset,
-  ): Promise<BN> => {
-    const options = await this.getFetchOptions();
-
-    return this.read.fetchPerpCollateralBalance(
-      accountAddress,
-      asset.address,
-      options,
-    );
-  };
-
-  fetchPerpAllTraderPositions = async (
-    accountAddress: string,
-    assetAddress: string,
-    limit: number,
-  ): Promise<PerpAllTraderPosition[]> => {
-    const options = await this.getFetchOptions();
-
-    return this.read.fetchPerpAllTraderPositions(
-      accountAddress,
-      assetAddress,
-      limit,
-      options,
-    );
-  };
-
-  fetchPerpIsAllowedCollateral = async (asset: Asset): Promise<boolean> => {
-    const options = await this.getFetchOptions();
-
-    return this.read.fetchPerpIsAllowedCollateral(asset.address, options);
-  };
-
-  fetchPerpTraderOrders = async (
-    accountAddress: string,
-    asset: Asset,
-    isOpened?: boolean,
-    orderType?: "buy" | "sell",
-  ) => {
-    const options = await this.getFetchOptions();
-
-    return this.read.fetchPerpTraderOrders(
-      accountAddress,
-      asset.address,
-      options,
-      isOpened,
-      orderType,
-    );
-  };
-
-  fetchPerpAllMarkets = async (
-    assetList: Asset[],
-    quoteAsset: Asset,
-  ): Promise<PerpMarket[]> => {
-    const options = await this.getFetchOptions();
-
-    return this.read.fetchPerpAllMarkets(assetList, quoteAsset, options);
-  };
-
-  fetchPerpFundingRate = async (asset: Asset): Promise<BN> => {
-    const options = await this.getFetchOptions();
-
-    return this.read.fetchPerpFundingRate(asset.address, options);
-  };
-
-  fetchPerpMaxAbsPositionSize = async (
-    accountAddress: string,
-    asset: Asset,
-    tradePrice: string,
-  ): Promise<PerpMaxAbsPositionSize> => {
-    const options = await this.getFetchOptions();
-
-    return this.read.fetchPerpMaxAbsPositionSize(
-      accountAddress,
-      asset.address,
-      tradePrice,
-      options,
-    );
-  };
-
-  matchPerpOrders = async (
-    order1Id: string,
-    order2Id: string,
-  ): Promise<WriteTransactionResponse> => {
-    const options = await this.getFetchOptions();
-    return this.write.matchPerpOrders(order1Id, order2Id, options);
-  };
-
-  fetchPerpPendingFundingPayment = async (
-    accountAddress: string,
-    asset: Asset,
-  ): Promise<PerpPendingFundingPayment> => {
-    const options = await this.getFetchOptions();
-
-    return this.read.fetchPerpPendingFundingPayment(
-      accountAddress,
-      asset.address,
-      options,
-    );
-  };
-
-  fetchPerpMarkPrice = async (asset: Asset): Promise<BN> => {
-    const options = await this.getFetchOptions();
-
-    return this.read.fetchPerpMarkPrice(asset.address, options);
-  };
-
-  fetchWalletBalance = async (asset: Asset): Promise<string> => {
-    // We use getApiOptions because we need the user's wallet
-    return this.read.fetchWalletBalance(asset.address, this.getApiOptions());
-  };
-
-  mintToken = async (
-    token: Asset,
-    amount: string,
-  ): Promise<WriteTransactionResponse> => {
-    return this.write.mintToken(token, amount, this.getApiOptions());
-  };
-
-  getProviderWallet = async () => {
-    const provider = await this.providerPromise;
+  async getProviderWallet(): Promise<WalletUnlocked> {
+    const provider = await this.getProvider();
     return Wallet.generate({ provider });
-  };
+  }
 
-  getProvider = async () => {
-    return this.providerPromise;
-  };
-
-  private getFetchOptions = async (): Promise<Options> => {
+  private async getReadOptions(): Promise<Options> {
     const providerWallet = await this.getProviderWallet();
-    const options: Options = { ...this.options, wallet: providerWallet };
+    return { ...this.options, wallet: providerWallet };
+  }
 
-    return options;
-  };
-
-  private getApiOptions = (): Options => {
+  private getWriteOptions(): Options {
     if (!this.options.wallet) {
       throw new NetworkError(NETWORK_ERROR.UNKNOWN_WALLET);
     }
-
     return this.options as Options;
-  };
+  }
 
-  private getPriceFeedUpdateData = async (
-    feedIds: string | string[],
-  ): Promise<{
-    priceUpdateData: number[][];
-    updateFee: unknown;
-  }> => {
-    const options = await this.getFetchOptions();
+  private async getRead(shouldWrite = false): Promise<ReadActions> {
+    const options = shouldWrite
+      ? this.getWriteOptions()
+      : await this.getReadOptions();
+    return new ReadActions(options);
+  }
 
-    const pythContract = PythContractAbi__factory.connect(
-      options.contractAddresses.pyth,
-      options.wallet,
+  private getWrite(): WriteActions {
+    const options = this.getWriteOptions();
+    return new WriteActions(options);
+  }
+
+  setActiveWallet(wallet?: WalletLocked | WalletUnlocked): void {
+    this.options.wallet = wallet;
+  }
+
+  setActiveMarket(contractAddress: string, indexer: GraphClientConfig): void {
+    this.options.contractAddresses.proxyMarket = contractAddress;
+
+    if (this.indexerApi) {
+      this.indexerApi.close();
+    }
+
+    this.indexerApi = new IndexerApi(indexer);
+  }
+
+  setSentioConfig(params: SentioApiParams): void {
+    this.sentioApi = new SentioApi(params);
+  }
+
+  async createOrder(
+    order: CreateOrderParams,
+  ): Promise<WriteTransactionResponse> {
+    return this.getWrite().createOrder(order);
+  }
+
+  async createOrderWithDeposit(
+    order: CreateOrderWithDepositParams,
+    allMarketContracts: string[],
+  ): Promise<WriteTransactionResponse> {
+    return this.getWrite().createOrderWithDeposit(order, allMarketContracts);
+  }
+
+  async fulfillOrderManyWithDeposit(
+    order: FulfillOrderManyWithDepositParams,
+    allMarketContracts: string[],
+  ): Promise<WriteTransactionResponse> {
+    return this.getWrite().fulfillOrderManyWithDeposit(
+      order,
+      allMarketContracts,
     );
+  }
 
-    const priceUpdateData =
-      await this.pythServiceConnection.getPriceFeedsUpdateData(
-        [feedIds].flat(),
-      );
+  async cancelOrder(orderId: string): Promise<WriteTransactionResponse> {
+    return this.getWrite().cancelOrder(orderId);
+  }
 
-    const parsedUpdateData = priceUpdateData.map((v) =>
-      Array.from(arrayify(v)),
+  async matchOrders(
+    sellOrderId: string,
+    buyOrderId: string,
+  ): Promise<WriteTransactionResponse> {
+    return this.getWrite().matchOrders(sellOrderId, buyOrderId);
+  }
+
+  async fulfillOrderMany(
+    order: FulfillOrderManyParams,
+  ): Promise<WriteTransactionResponse> {
+    return this.getWrite().fulfillOrderMany(order);
+  }
+
+  async mintToken(
+    token: Asset,
+    amount: string,
+  ): Promise<WriteTransactionResponse> {
+    return this.getWrite().mintToken(token, amount);
+  }
+
+  async deposit(
+    token: Asset,
+    amount: string,
+  ): Promise<WriteTransactionResponse> {
+    return this.getWrite().deposit(token, amount);
+  }
+
+  async withdraw(
+    amount: string,
+    assetType: AssetType,
+  ): Promise<WriteTransactionResponse> {
+    return this.getWrite().withdraw(amount, assetType);
+  }
+
+  async withdrawAll(
+    assets: WithdrawAllType[],
+  ): Promise<WriteTransactionResponse> {
+    return this.getWrite().withdrawAll(assets);
+  }
+
+  async withdrawAssets(
+    assetType: AssetType,
+    allMarketContracts: string[],
+    amount?: string,
+  ): Promise<WriteTransactionResponse> {
+    return this.getWrite().withdrawAssets(
+      assetType,
+      allMarketContracts,
+      amount,
     );
+  }
 
-    const updateFee = await pythContract.functions
-      .update_fee(parsedUpdateData)
-      .get();
+  async withdrawAllAssets(
+    allMarketContracts: string[],
+  ): Promise<WriteTransactionResponse> {
+    return this.getWrite().withdrawAllAssets(allMarketContracts);
+  }
 
-    return {
-      priceUpdateData: parsedUpdateData,
-      updateFee: updateFee.value,
+  async fetchOrders(
+    params: GetOrdersParams,
+  ): Promise<ApolloQueryResult<{ Order: Order[] }>> {
+    return this.activeIndexerApi.getOrders(params);
+  }
+
+  async fetchActiveOrders<T extends OrderType>(
+    params: GetActiveOrdersParams,
+  ): Promise<ApolloQueryResult<ActiveOrderReturn<T>>> {
+    return this.activeIndexerApi.getActiveOrders<T>(params);
+  }
+
+  subscribeOrders(
+    params: GetOrdersParams,
+  ): Observable<FetchResult<{ Order: Order[] }>> {
+    return this.activeIndexerApi.subscribeOrders(params);
+  }
+
+  subscribeActiveOrders<T extends OrderType>(
+    params: GetActiveOrdersParams,
+  ): Observable<FetchResult<ActiveOrderReturn<T>>> {
+    return this.activeIndexerApi.subscribeActiveOrders<T>(params);
+  }
+
+  subscribeTradeOrderEvents(
+    params: GetTradeOrderEventsParams,
+  ): Observable<FetchResult<{ TradeOrderEvent: TradeOrderEvent[] }>> {
+    return this.activeIndexerApi.subscribeTradeOrderEvents(params);
+  }
+
+  async fetchVolume(params: GetTradeOrderEventsParams): Promise<Volume> {
+    return this.activeIndexerApi.getVolume(params);
+  }
+
+  subscribeUserInfo(
+    params: UserInfoParams,
+  ): Observable<FetchResult<{ User: UserInfo[] }>> {
+    return this.activeIndexerApi.subscribeUserInfo(params);
+  }
+
+  async fetchMarkets(assetIdPairs: [string, string][]): Promise<Markets> {
+    const read = await this.getRead();
+    return read.fetchMarkets(assetIdPairs);
+  }
+
+  async fetchMarketConfig(marketAddress: string): Promise<MarketInfo> {
+    const read = await this.getRead();
+    return read.fetchMarketConfig(marketAddress);
+  }
+
+  async fetchOrderById(
+    orderId: string,
+  ): Promise<SpotOrderWithoutTimestamp | undefined> {
+    const read = await this.getRead();
+    return read.fetchOrderById(orderId);
+  }
+
+  async fetchWalletBalance(asset: Asset): Promise<string> {
+    const read = await this.getRead(true);
+    return read.fetchWalletBalance(asset.assetId);
+  }
+
+  async fetchOrderIdsByAddress(trader: Bech32Address): Promise<string[]> {
+    const read = await this.getRead();
+    return read.fetchOrderIdsByAddress(trader);
+  }
+
+  async fetchUserMarketBalance(
+    trader: Bech32Address,
+  ): Promise<UserMarketBalance> {
+    const read = await this.getRead();
+    return read.fetchUserMarketBalance(trader);
+  }
+
+  async fetchUserMarketBalanceByContracts(
+    trader: Bech32Address,
+    contractsAddresses: string[],
+  ): Promise<UserMarketBalance[]> {
+    const read = await this.getRead();
+    return read.fetchUserMarketBalanceByContracts(trader, contractsAddresses);
+  }
+
+  async fetchMatcherFee(): Promise<string> {
+    const read = await this.getRead();
+    return read.fetchMatcherFee();
+  }
+
+  async fetchProtocolFee(): Promise<ProtocolFee[]> {
+    const read = await this.getRead();
+    return read.fetchProtocolFee();
+  }
+
+  async fetchProtocolFeeForUser(
+    trader: Bech32Address,
+  ): Promise<UserProtocolFee> {
+    const read = await this.getRead();
+    return read.fetchProtocolFeeForUser(trader);
+  }
+
+  async fetchProtocolFeeAmountForUser(
+    amount: string,
+    trader: Bech32Address,
+  ): Promise<UserProtocolFee> {
+    const read = await this.getRead();
+    return read.fetchProtocolFeeAmountForUser(amount, trader);
+  }
+
+  async getVersion(): Promise<{ address: string; version: number }> {
+    const read = await this.getRead();
+    return read.getOrderbookVersion();
+  }
+
+  async getAsset(symbol: string): Promise<Undefinable<string>> {
+    const read = await this.getRead();
+    return read.getAsset(symbol);
+  }
+
+  async fetchMinOrderSize(): Promise<string> {
+    const read = await this.getRead();
+    return read.fetchMinOrderSize();
+  }
+
+  async fetchMinOrderPrice(): Promise<string> {
+    const read = await this.getRead();
+    return read.fetchMinOrderPrice();
+  }
+
+  async getUserScoreSnapshot(params: GetUserScoreSnapshotParams) {
+    return this.activeSentioApi?.getUserScoreSnapshot(params);
+  }
+
+  async getTradeEvent(params: GetTradeEventQueryParams) {
+    return this.activeSentioApi?.getTradeEvent(params);
+  }
+
+  /**
+   * @experimental
+   * Returns the current instance to allow method chaining.
+   * @returns {this} The current instance of the object.
+   */
+  chain(): this {
+    return this;
+  }
+
+  /**
+   * @experimental
+   * Returns the current instance to allow method chaining.
+   * @returns {this} The current instance of the object.
+   */
+  writeWithMarket(marketAddress: string): SparkPerpetual {
+    const params = {
+      ...this.options,
+      contractAddresses: {
+        ...this.options.contractAddresses,
+        market: marketAddress,
+      },
+      networkUrl: this.provider!.url,
     };
-  };
+
+    return new SparkPerpetual(params);
+  }
 }

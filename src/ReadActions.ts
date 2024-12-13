@@ -1,372 +1,270 @@
-import { Address } from "fuels";
-import {
-  Asset,
-  FetchTradesParams,
-  Options,
-  PerpAllTraderPosition,
-  PerpMarket,
-  PerpMaxAbsPositionSize,
-  PerpPendingFundingPayment,
-  PerpTraderOrder,
-  PerpTrades,
-} from "src/interface";
-import { AccountBalanceAbi__factory } from "src/types/account-balance";
-import {
-  AddressInput,
-  AssetIdInput,
-} from "src/types/account-balance/AccountBalanceAbi";
-import { ClearingHouseAbi__factory } from "src/types/clearing-house";
-import { PerpMarketAbi__factory } from "src/types/perp-market";
-import { VaultAbi__factory } from "src/types/vault";
-import BN from "src/utils/BN";
-import { convertI64ToBn } from "src/utils/convertI64ToBn";
-import getUnixTime from "src/utils/getUnixTime";
+import { Address, Bech32Address, ZeroBytes32 } from "fuels";
+import { Undefinable } from "tsdef";
 
-import { IndexerApi } from "./IndexerApi";
+import { AccountOutput, IdentityInput } from "./types/market/SparkMarket";
+import { Vec } from "./types/registry/common";
+import { AssetIdInput } from "./types/registry/SparkRegistry";
+
+import BN from "./utils/BN";
+import { createContract } from "./utils/createContract";
+import {
+  MarketInfo,
+  Markets,
+  Options,
+  OrderType,
+  ProtocolFee,
+  SpotOrderWithoutTimestamp,
+  UserMarketBalance,
+  UserProtocolFee,
+} from "./interface";
 
 export class ReadActions {
-  private indexerApi: IndexerApi;
+  private options: Options;
 
-  constructor(indexerApiUrl: string) {
-    this.indexerApi = new IndexerApi(indexerApiUrl);
+  constructor(options: Options) {
+    this.options = options;
   }
 
-  fetchPerpCollateralBalance = async (
-    accountAddress: string,
-    assetAddress: string,
-    options: Options,
-  ): Promise<BN> => {
-    const vaultFactory = VaultAbi__factory.connect(
-      options.contractAddresses.vault,
-      options.wallet,
+  private get registryFactory() {
+    return createContract("SparkRegistry", this.options);
+  }
+
+  private get assetsFactory() {
+    return createContract("MultiassetContract", this.options);
+  }
+
+  private getProxyMarketFactory(address?: string) {
+    return createContract(
+      "SparkMarket",
+      this.options,
+      address ?? this.options.contractAddresses.proxyMarket,
+    );
+  }
+
+  private createIdentityInput(trader: Bech32Address): IdentityInput {
+    return {
+      Address: {
+        bits: new Address(trader).toB256(),
+      },
+    };
+  }
+
+  async getOrderbookVersion(): Promise<{ address: string; version: number }> {
+    const data = await this.registryFactory.functions.config().get();
+
+    return {
+      address:
+        data.value[0]?.Address?.bits ?? data.value[0]?.ContractId?.bits ?? "",
+      version: data.value[1],
+    };
+  }
+
+  async getAsset(symbol: string): Promise<Undefinable<string>> {
+    const data = await this.assetsFactory.functions.asset_get(symbol).get();
+
+    return data.value?.bits;
+  }
+
+  async fetchMarkets(assetIdPairs: [string, string][]): Promise<Markets> {
+    const assetIdInput: Vec<[AssetIdInput, AssetIdInput]> = assetIdPairs.map(
+      ([baseTokenId, quoteTokenId]) => [
+        { bits: baseTokenId },
+        { bits: quoteTokenId },
+      ],
     );
 
-    const addressInput: AddressInput = {
-      value: new Address(accountAddress as any).toB256(),
-    };
-
-    const assetIdInput: AssetIdInput = {
-      value: assetAddress,
-    };
-
-    const result = await vaultFactory.functions
-      .get_collateral_balance(addressInput, assetIdInput)
+    const data = await this.registryFactory.functions
+      .markets(assetIdInput)
       .get();
 
-    const collateralBalance = new BN(result.value.toString());
+    return data.value.reduce(
+      (prev, [baseAssetId, quoteAssetId, contractId]) => {
+        if (!contractId) return prev;
 
-    return collateralBalance;
-  };
+        return {
+          ...prev,
+          [`${baseAssetId.bits}-${quoteAssetId.bits}`]:
+            contractId.bits ?? ZeroBytes32,
+        };
+      },
+      {} as Markets,
+    );
+  }
 
-  fetchPerpAllTraderPositions = async (
-    accountAddress: string,
-    assetAddress: string,
-    limit: number,
-    options: Options,
-  ): Promise<PerpAllTraderPosition[]> => {
-    const data = await this.indexerApi.getPerpPositions({
-      trader: accountAddress,
-      baseToken: assetAddress,
-      limit,
+  async fetchMarketConfig(marketAddress: string): Promise<MarketInfo> {
+    const marketFactory = this.getProxyMarketFactory(marketAddress);
+
+    const data = await marketFactory.functions.config().get();
+
+    const [
+      baseAssetId,
+      baseAssetDecimals,
+      quoteAssetId,
+      quoteAssetDecimals,
+      ownerIdentity,
+      priceDecimals,
+      version,
+    ] = data.value;
+
+    const owner =
+      ownerIdentity?.Address?.bits ?? ownerIdentity?.ContractId?.bits ?? "";
+
+    return {
+      baseAssetId: baseAssetId.bits,
+      baseAssetDecimals,
+      quoteAssetId: quoteAssetId.bits,
+      quoteAssetDecimals,
+      owner,
+      priceDecimals,
+      version,
+    };
+  }
+
+  async fetchUserMarketBalance(
+    trader: Bech32Address,
+  ): Promise<UserMarketBalance> {
+    const user = this.createIdentityInput(trader);
+    const result = await this.getProxyMarketFactory()
+      .functions.account(user)
+      .get();
+
+    const { liquid, locked } = result.value ?? {};
+
+    return {
+      liquid: {
+        base: liquid?.base.toString() ?? "0",
+        quote: liquid?.quote.toString() ?? "0",
+      },
+      locked: {
+        base: locked?.base.toString() ?? "0",
+        quote: locked?.quote.toString() ?? "0",
+      },
+    };
+  }
+
+  async fetchUserMarketBalanceByContracts(
+    trader: Bech32Address,
+    contractsAddresses: string[],
+  ): Promise<UserMarketBalance[]> {
+    const user = this.createIdentityInput(trader);
+    const calls = contractsAddresses.map((address) => {
+      const market = this.getProxyMarketFactory(address);
+      return market.functions.account(user);
     });
 
-    const positions = data.map((position) => ({
-      baseTokenAddress: position.base_token,
-      lastTwPremiumGrowthGlobal: new BN(position.last_tw_premium_growth_global),
-      takerOpenNational: new BN(position.taker_open_notional),
-      takerPositionSize: new BN(position.taker_position_size),
+    const baseMarketContract = this.getProxyMarketFactory(
+      contractsAddresses[0],
+    );
+    const result = await baseMarketContract.multiCall(calls).get();
+
+    return result.value.map((data: AccountOutput) => ({
+      liquid: {
+        base: data.liquid.base.toString() ?? "0",
+        quote: data.liquid.quote.toString() ?? "0",
+      },
+      locked: {
+        base: data.locked.base.toString() ?? "0",
+        quote: data.locked.quote.toString() ?? "0",
+      },
     }));
+  }
 
-    return positions;
-  };
-
-  fetchPerpMarketPrice = async (
-    assetAddress: string,
-    options: Options,
-  ): Promise<BN> => {
-    const perpMarketFactory = PerpMarketAbi__factory.connect(
-      options.contractAddresses.perpMarket,
-      options.wallet,
-    );
-
-    const assetIdInput: AssetIdInput = {
-      value: assetAddress,
-    };
-
-    const result = await perpMarketFactory.functions
-      .get_market_price(assetIdInput)
+  async fetchOrderById(
+    orderId: string,
+  ): Promise<Undefinable<SpotOrderWithoutTimestamp>> {
+    const result = await this.getProxyMarketFactory()
+      .functions.order(orderId)
       .get();
 
-    const marketPrice = new BN(result.value.toString());
+    if (!result.value) return;
 
-    return marketPrice;
-  };
+    const { amount, price, order_type, owner } = result.value;
 
-  fetchPerpFundingRate = async (
-    assetAddress: string,
-    options: Options,
-  ): Promise<BN> => {
-    const accountBalanceFactory = AccountBalanceAbi__factory.connect(
-      options.contractAddresses.accountBalance,
-      options.wallet,
-    );
-
-    const assetIdInput: AssetIdInput = {
-      value: assetAddress,
+    return {
+      id: orderId,
+      orderType: order_type as unknown as OrderType,
+      trader: owner.Address?.bits ?? "",
+      baseSize: new BN(amount.toString()),
+      orderPrice: new BN(price.toString()),
     };
+  }
 
-    const result = await accountBalanceFactory.functions
-      .get_funding_rate(assetIdInput)
-      .get();
-
-    const fundingRate = convertI64ToBn(result.value);
-
-    return fundingRate;
-  };
-
-  fetchPerpFreeCollateral = async (
-    accountAddress: string,
-    options: Options,
-  ): Promise<BN> => {
-    const vaultFactory = VaultAbi__factory.connect(
-      options.contractAddresses.vault,
-      options.wallet,
-    );
-
-    const addressInput: AddressInput = {
-      value: new Address(accountAddress as any).toB256(),
-    };
-
-    const result = await vaultFactory.functions
-      .get_free_collateral(addressInput)
-      .get();
-
-    const freeCollateral = new BN(result.value.toString());
-
-    return freeCollateral;
-  };
-
-  fetchPerpMarket = async (
-    baseAsset: Asset,
-    quoteAsset: Asset,
-    options: Options,
-  ): Promise<PerpMarket> => {
-    const clearingHouseFactory = ClearingHouseAbi__factory.connect(
-      options.contractAddresses.clearingHouse,
-      options.wallet,
-    );
-
-    const assetIdInput: AssetIdInput = {
-      value: baseAsset.address,
-    };
-
-    const result = await clearingHouseFactory.functions
-      .get_market(assetIdInput)
-      .get();
-
-    const pausedIndexPrice = result.value.paused_index_price
-      ? new BN(result.value.paused_index_price.toString())
-      : undefined;
-    const pausedTimestamp = result.value.paused_timestamp
-      ? new BN(result.value.paused_timestamp.toString()).toNumber()
-      : undefined;
-    const closedPrice = result.value.closed_price
-      ? new BN(result.value.closed_price.toString())
-      : undefined;
-
-    const perpMarket: PerpMarket = {
-      baseTokenAddress: result.value.asset_id.value,
-      quoteTokenAddress: quoteAsset.address,
-      imRatio: new BN(result.value.im_ratio.toString()),
-      mmRatio: new BN(result.value.mm_ratio.toString()),
-      status: result.value.status,
-      pausedIndexPrice,
-      pausedTimestamp,
-      closedPrice,
-    };
-
-    return perpMarket;
-  };
-
-  fetchPerpAllMarkets = async (
-    assets: Asset[],
-    quoteAsset: Asset,
-    options: Options,
-  ): Promise<PerpMarket[]> => {
-    const data = await this.indexerApi.getPerpMarkets();
-
-    const markets: PerpMarket[] = data.map((market) => ({
-      baseTokenAddress: market.asset_id,
-      quoteTokenAddress: quoteAsset.address,
-      imRatio: new BN(market.im_ratio),
-      mmRatio: new BN(market.mm_ratio),
-      status: market.status,
-      pausedIndexPrice: market.paused_index_price
-        ? new BN(market.paused_index_price)
-        : undefined,
-      pausedTimestamp: Number(market.paused_timestamp),
-      closedPrice: market.closed_price
-        ? new BN(market.closed_price)
-        : undefined,
-    }));
-
-    return markets;
-  };
-
-  fetchPerpPendingFundingPayment = async (
-    accountAddress: string,
-    assetAddress: string,
-    options: Options,
-  ): Promise<PerpPendingFundingPayment> => {
-    const accountBalanceFactory = AccountBalanceAbi__factory.connect(
-      options.contractAddresses.accountBalance,
-      options.wallet,
-    );
-
-    const addressInput: AddressInput = {
-      value: new Address(accountAddress as any).toB256(),
-    };
-
-    const assetIdInput: AssetIdInput = {
-      value: assetAddress,
-    };
-
-    const result = await accountBalanceFactory.functions
-      .get_pending_funding_payment(addressInput, assetIdInput)
-      .get();
-
-    const fundingPayment = convertI64ToBn(result.value[0]);
-    const fundingGrowthPayment = convertI64ToBn(result.value[1]);
-
-    return { fundingPayment, fundingGrowthPayment };
-  };
-
-  fetchPerpIsAllowedCollateral = async (
-    assetAddress: string,
-    options: Options,
-  ): Promise<boolean> => {
-    const vaultFactory = VaultAbi__factory.connect(
-      options.contractAddresses.vault,
-      options.wallet,
-    );
-
-    const assetIdInput: AssetIdInput = {
-      value: assetAddress,
-    };
-
-    const result = await vaultFactory.functions
-      .is_allowed_collateral(assetIdInput)
+  async fetchOrderIdsByAddress(trader: Bech32Address): Promise<string[]> {
+    const user = this.createIdentityInput(trader);
+    const result = await this.getProxyMarketFactory()
+      .functions.user_orders(user)
       .get();
 
     return result.value;
-  };
+  }
 
-  fetchPerpTraderOrders = async (
-    accountAddress: string,
-    assetAddress: string,
-    options: Options,
-    isOpened?: boolean,
-    orderType?: "buy" | "sell",
-  ): Promise<PerpTraderOrder[]> => {
-    const data = await this.indexerApi.getPerpOrders({
-      trader: accountAddress,
-      baseToken: assetAddress,
-    });
-
-    const orders = data.map((order) => ({
-      id: order.id,
-      trader: order.trader,
-      baseTokenAddress: order.base_token,
-      baseSize: new BN(order.base_size),
-      orderPrice: new BN(order.base_price),
-      timestamp: getUnixTime(order.timestamp),
-    }));
-
-    return orders;
-  };
-
-  fetchPerpMaxAbsPositionSize = async (
-    accountAddress: string,
-    assetAddress: string,
-    tradePrice: string,
-    options: Options,
-  ): Promise<PerpMaxAbsPositionSize> => {
-    const vaultFactory = VaultAbi__factory.connect(
-      options.contractAddresses.vault,
-      options.wallet,
-    );
-
-    const addressInput: AddressInput = {
-      value: new Address(accountAddress as any).toB256(),
-    };
-
-    const assetIdInput: AssetIdInput = {
-      value: assetAddress,
-    };
-
-    const result = await vaultFactory.functions
-      .get_max_abs_position_size(addressInput, assetIdInput, tradePrice)
-      .get();
-    const shortSize = new BN(result.value[0].toString());
-    const longSize = new BN(result.value[1].toString());
-
-    return { shortSize, longSize };
-  };
-
-  fetchPerpMarkPrice = async (
-    assetAddress: string,
-    options: Options,
-  ): Promise<BN> => {
-    const perpMarketFactory = PerpMarketAbi__factory.connect(
-      options.contractAddresses.perpMarket,
-      options.wallet,
-    );
-
-    const assetIdInput: AssetIdInput = {
-      value: assetAddress,
-    };
-
-    const result = await perpMarketFactory.functions
-      .get_mark_price(assetIdInput)
-      .get();
-
-    const markPrice = new BN(result.value.toString());
-
-    return markPrice;
-  };
-
-  fetchPerpTradeEvents = async ({
-    baseToken,
-    limit,
-    trader,
-  }: FetchTradesParams): Promise<PerpTrades[]> => {
-    const traderAddress = trader
-      ? new Address(trader as any).toB256()
-      : undefined;
-
-    const data = await this.indexerApi.getPerpTradeEvents({
-      limit,
-      trader: traderAddress,
-      baseToken,
-    });
-
-    return data.map((trade) => ({
-      baseToken: trade.base_token,
-      seller: trade.seller,
-      buyer: trade.buyer,
-      tradeSize: trade.trade_size,
-      tradePrice: trade.trade_price,
-      sellOrderId: trade.sell_order_id,
-      buyOrderId: trade.buy_order_id,
-      timestamp: trade.timestamp,
-    }));
-  };
-
-  fetchWalletBalance = async (
-    assetId: string,
-    options: Options,
-  ): Promise<string> => {
-    const balance = await options.wallet.getBalance(assetId);
+  async fetchWalletBalance(assetId: string): Promise<string> {
+    const balance = await this.options.wallet.getBalance(assetId);
     return balance.toString();
-  };
+  }
+
+  async fetchMatcherFee(): Promise<string> {
+    const result = await this.getProxyMarketFactory()
+      .functions.matcher_fee()
+      .get();
+
+    return result.value.toString();
+  }
+
+  async fetchProtocolFee(): Promise<ProtocolFee[]> {
+    const result = await this.getProxyMarketFactory()
+      .functions.protocol_fee()
+      .get();
+
+    return result.value.map((fee) => ({
+      makerFee: fee.maker_fee.toString(),
+      takerFee: fee.taker_fee.toString(),
+      volumeThreshold: fee.volume_threshold.toString(),
+    }));
+  }
+
+  async fetchProtocolFeeForUser(
+    trader: Bech32Address,
+  ): Promise<UserProtocolFee> {
+    const user = this.createIdentityInput(trader);
+    const result = await this.getProxyMarketFactory()
+      .functions.protocol_fee_user(user)
+      .get();
+
+    return {
+      makerFee: result.value[0].toString(),
+      takerFee: result.value[1].toString(),
+    };
+  }
+
+  async fetchProtocolFeeAmountForUser(
+    amount: string,
+    trader: Bech32Address,
+  ): Promise<UserProtocolFee> {
+    const user = this.createIdentityInput(trader);
+    const result = await this.getProxyMarketFactory()
+      .functions.protocol_fee_user_amount(amount, user)
+      .get();
+
+    return {
+      makerFee: result.value[0].toString(),
+      takerFee: result.value[1].toString(),
+    };
+  }
+
+  async fetchMinOrderSize(): Promise<string> {
+    const result = await this.getProxyMarketFactory()
+      .functions.min_order_size()
+      .get();
+
+    return result.value.toString();
+  }
+
+  async fetchMinOrderPrice(): Promise<string> {
+    const result = await this.getProxyMarketFactory()
+      .functions.min_order_price()
+      .get();
+
+    return result.value.toString();
+  }
 }

@@ -1,410 +1,315 @@
 import {
-  Address,
   CoinQuantityLike,
   FunctionInvocationScope,
-  hashMessage,
-  Script,
+  MultiCallInvocationScope,
 } from "fuels";
-import { BETA_CONTRACT_ADDRESSES, BETA_TOKENS } from "src/constants";
-import { AccountBalanceAbi__factory } from "src/types/account-balance";
+
+import {
+  AssetTypeInput,
+  LimitTypeInput,
+  OrderTypeInput,
+} from "./types/market/SparkMarket";
 import {
   AssetIdInput,
-  I64Input,
-} from "src/types/account-balance/AccountBalanceAbi";
-import { ClearingHouseAbi__factory } from "src/types/clearing-house";
-import { PerpMarketAbi__factory } from "src/types/perp-market";
-import { ProxyAbi__factory } from "src/types/proxy";
-import { ScriptProxyAbi__factory } from "src/types/script-proxy";
-import {
-  FulfillOrderInput,
-  OpenOrderInput,
-  WithdrawCollateralInput,
-} from "src/types/script-proxy/ScriptProxyAbi";
-import ScriptProxyAbiBytes from "src/types/script-proxy/ScriptProxyAbi.hex";
-import { VaultAbi__factory } from "src/types/vault";
+  IdentityInput,
+} from "./types/multiasset/MultiassetContract";
 
-import { PythContractAbi__factory } from "./types/pyth";
-import { TokenAbi__factory } from "./types/src-20";
-import { IdentityInput } from "./types/src-20/TokenAbi";
 import BN from "./utils/BN";
-import { Asset, Options, WriteTransactionResponse } from "./interface";
+import { createContract } from "./utils/createContract";
+import { prepareDepositAndWithdrawals } from "./utils/prepareDepositAndWithdrawals";
+import { prepareFullWithdrawals } from "./utils/prepareFullWithdrawals";
+import {
+  Asset,
+  AssetType,
+  CreateOrderParams,
+  CreateOrderWithDepositParams,
+  FulfillOrderManyParams,
+  FulfillOrderManyWithDepositParams,
+  Options,
+  WithdrawAllType,
+  WriteTransactionResponse,
+} from "./interface";
 
 export class WriteActions {
-  depositPerpCollateral = async (
-    assetAddress: string,
-    amount: string,
-    options: Options,
-  ): Promise<WriteTransactionResponse> => {
-    const vaultFactory = VaultAbi__factory.connect(
-      options.contractAddresses.vault,
-      options.wallet,
+  private options: Options;
+
+  constructor(options: Options) {
+    this.options = options;
+  }
+
+  private get multiAssetContract() {
+    return createContract(
+      "MultiassetContract",
+      this.options,
+      this.options.contractAddresses.multiAsset,
     );
+  }
 
-    const forward: CoinQuantityLike = {
-      assetId: assetAddress,
-      amount,
-    };
-
-    const tx = await vaultFactory.functions
-      .deposit_collateral()
-      .callParams({ forward })
-      .txParams({ gasPrice: options.gasPrice });
-
-    return this.sendTransaction(tx, options);
-  };
-
-  withdrawPerpCollateral = async (
-    baseTokenAddress: string,
-    gasTokenAddress: string,
-    amount: string,
-    updateData: number[][],
-    updateFee: BN,
-    options: Options,
-  ): Promise<WriteTransactionResponse> => {
-    const scriptProxy = new Script(
-      ScriptProxyAbiBytes,
-      ScriptProxyAbi__factory.abi,
-      options.wallet,
+  private getProxyMarketFactory() {
+    return createContract(
+      "SparkMarket",
+      this.options,
+      this.options.contractAddresses.proxyMarket,
     );
+  }
 
-    const assetIdInput: AssetIdInput = {
-      value: baseTokenAddress,
-    };
-
-    const forward: CoinQuantityLike = {
-      amount: "10",
-      assetId: gasTokenAddress,
-    };
-
-    const priceFeedIds: unknown = BETA_TOKENS.map((v) => v.priceFeed);
-
-    const withdrawCollateralInput: WithdrawCollateralInput = {
-      vault: {
-        value: Address.fromString(BETA_CONTRACT_ADDRESSES.vault).toB256(),
-      },
-      amount: amount.toString(),
-      collateral: assetIdInput,
-    };
-
-    const tx = await scriptProxy.functions
-      .main(
-        { WithdrawCollateral: withdrawCollateralInput },
-        {
-          value: Address.fromString(BETA_CONTRACT_ADDRESSES.proxy).toB256(),
-        },
-        updateFee,
-        priceFeedIds,
-        updateData,
-      )
-      .callParams({ forward })
-      .txParams({ gasPrice: 1 })
-      .addContracts([
-        ProxyAbi__factory.connect(
-          options.contractAddresses.proxy,
-          options.wallet,
-        ),
-        PerpMarketAbi__factory.connect(
-          options.contractAddresses.perpMarket,
-          options.wallet,
-        ),
-        AccountBalanceAbi__factory.connect(
-          options.contractAddresses.accountBalance,
-          options.wallet,
-        ),
-        ClearingHouseAbi__factory.connect(
-          options.contractAddresses.clearingHouse,
-          options.wallet,
-        ),
-        VaultAbi__factory.connect(
-          options.contractAddresses.vault,
-          options.wallet,
-        ),
-        PythContractAbi__factory.connect(
-          options.contractAddresses.pyth,
-          options.wallet,
-        ),
-      ]);
-
-    return this.sendTransaction(tx, options);
-  };
-
-  openPerpOrder = async (
-    baseTokenAddress: string,
-    gasTokenAddress: string,
-    amount: string,
-    price: string,
-    updateData: number[][],
-    updateFee: BN,
-    options: Options,
-  ): Promise<WriteTransactionResponse> => {
-    const scriptProxy = new Script(
-      ScriptProxyAbiBytes,
-      ScriptProxyAbi__factory.abi,
-      options.wallet,
-    );
-
-    const assetIdInput: AssetIdInput = {
-      value: baseTokenAddress,
-    };
-
-    const isNegative = amount.includes("-");
-    const absSize = amount.replace("-", "");
-    const baseSize: I64Input = { value: absSize, negative: isNegative };
-
-    const priceFeedIds: unknown = BETA_TOKENS.map((v) => v.priceFeed);
-
-    const forward: CoinQuantityLike = {
-      amount: "10",
-      assetId: gasTokenAddress,
-    };
-
-    const openPerpOrderInput: OpenOrderInput = {
-      clearing_house: {
-        value: Address.fromString(
-          BETA_CONTRACT_ADDRESSES.clearingHouse,
-        ).toB256(),
-      },
-      base_size: baseSize,
-      base_token: assetIdInput,
-      order_price: price,
-    };
-
-    const tx = scriptProxy.functions
-      .main(
-        { OpenOrder: openPerpOrderInput },
-        {
-          value: Address.fromString(BETA_CONTRACT_ADDRESSES.proxy).toB256(),
-        },
-        updateFee,
-        priceFeedIds,
-        updateData,
-      )
-      .callParams({ forward })
-      .txParams({ gasPrice: options.gasPrice })
-      .addContracts([
-        ProxyAbi__factory.connect(
-          options.contractAddresses.proxy,
-          options.wallet,
-        ),
-        PerpMarketAbi__factory.connect(
-          options.contractAddresses.perpMarket,
-          options.wallet,
-        ),
-        ClearingHouseAbi__factory.connect(
-          options.contractAddresses.clearingHouse,
-          options.wallet,
-        ),
-        AccountBalanceAbi__factory.connect(
-          options.contractAddresses.accountBalance,
-          options.wallet,
-        ),
-        VaultAbi__factory.connect(
-          options.contractAddresses.vault,
-          options.wallet,
-        ),
-        PythContractAbi__factory.connect(
-          options.contractAddresses.pyth,
-          options.wallet,
-        ),
-      ]);
-
-    return this.sendTransaction(tx, options);
-  };
-
-  removePerpOrder = async (
-    orderId: string,
-    options: Options,
-  ): Promise<WriteTransactionResponse> => {
-    const clearingHouseFactory = ClearingHouseAbi__factory.connect(
-      options.contractAddresses.clearingHouse,
-      options.wallet,
-    );
-
-    const tx = await clearingHouseFactory.functions
-      .remove_order(orderId)
-      .txParams({ gasPrice: options.gasPrice })
-      .addContracts([
-        ProxyAbi__factory.connect(
-          options.contractAddresses.proxy,
-          options.wallet,
-        ),
-        PerpMarketAbi__factory.connect(
-          options.contractAddresses.perpMarket,
-          options.wallet,
-        ),
-        ClearingHouseAbi__factory.connect(
-          options.contractAddresses.clearingHouse,
-          options.wallet,
-        ),
-      ]);
-
-    return this.sendTransaction(tx, options);
-  };
-
-  fulfillPerpOrder = async (
-    gasTokenAddress: string,
-    orderId: string,
-    amount: string,
-    updateData: number[][],
-    updateFee: BN,
-    options: Options,
-  ): Promise<WriteTransactionResponse> => {
-    const scriptProxy = new Script(
-      ScriptProxyAbiBytes,
-      ScriptProxyAbi__factory.abi,
-      options.wallet,
-    );
-
-    const isNegative = amount.includes("-");
-    const absSize = amount.replace("-", "");
-    const baseSize: I64Input = { value: absSize, negative: isNegative };
-
-    const priceFeedIds: unknown = BETA_TOKENS.map((v) => v.priceFeed);
-
-    const forward: CoinQuantityLike = {
-      amount: "10",
-      assetId: gasTokenAddress,
-    };
-
-    const fullfillPerpOrderInput: FulfillOrderInput = {
-      clearing_house: {
-        value: Address.fromString(
-          BETA_CONTRACT_ADDRESSES.clearingHouse,
-        ).toB256(),
-      },
-      base_size: baseSize,
-      order_id: orderId,
-    };
-
-    const tx = await scriptProxy.functions
-      .main(
-        { FulfillOrder: fullfillPerpOrderInput },
-        {
-          value: Address.fromString(BETA_CONTRACT_ADDRESSES.proxy).toB256(),
-        },
-        updateFee,
-        priceFeedIds,
-        updateData,
-      )
-      .callParams({ forward })
-      .txParams({ gasPrice: options.gasPrice })
-      .addContracts([
-        ProxyAbi__factory.connect(
-          options.contractAddresses.proxy,
-          options.wallet,
-        ),
-        PerpMarketAbi__factory.connect(
-          options.contractAddresses.perpMarket,
-          options.wallet,
-        ),
-        AccountBalanceAbi__factory.connect(
-          options.contractAddresses.accountBalance,
-          options.wallet,
-        ),
-        ClearingHouseAbi__factory.connect(
-          options.contractAddresses.clearingHouse,
-          options.wallet,
-        ),
-        VaultAbi__factory.connect(
-          options.contractAddresses.vault,
-          options.wallet,
-        ),
-        PythContractAbi__factory.connect(
-          options.contractAddresses.pyth,
-          options.wallet,
-        ),
-      ]);
-
-    return this.sendTransaction(tx, options);
-  };
-
-  matchPerpOrders = async (
-    order1Id: string,
-    order2Id: string,
-    options: Options,
-  ): Promise<WriteTransactionResponse> => {
-    const clearingHouseFactory = ClearingHouseAbi__factory.connect(
-      options.contractAddresses.clearingHouse,
-      options.wallet,
-    );
-
-    const forward: CoinQuantityLike = {
-      amount: "10",
-      assetId:
-        "0x0000000000000000000000000000000000000000000000000000000000000000", // for the test
-    };
-
-    const tx = await clearingHouseFactory.functions
-      .match_orders(order1Id, order2Id)
-      .callParams({ forward })
-      .txParams({ gasPrice: options.gasPrice })
-      .addContracts([
-        ProxyAbi__factory.connect(
-          options.contractAddresses.proxy,
-          options.wallet,
-        ),
-        PerpMarketAbi__factory.connect(
-          options.contractAddresses.perpMarket,
-          options.wallet,
-        ),
-        AccountBalanceAbi__factory.connect(
-          options.contractAddresses.accountBalance,
-          options.wallet,
-        ),
-        ClearingHouseAbi__factory.connect(
-          options.contractAddresses.clearingHouse,
-          options.wallet,
-        ),
-        VaultAbi__factory.connect(
-          options.contractAddresses.vault,
-          options.wallet,
-        ),
-        PythContractAbi__factory.connect(
-          options.contractAddresses.pyth,
-          options.wallet,
-        ),
-      ]);
-
-    return this.sendTransaction(tx, options);
-  };
-
-  mintToken = async (
+  async deposit(
     token: Asset,
     amount: string,
-    options: Options,
-  ): Promise<WriteTransactionResponse> => {
-    const tokenFactory = options.contractAddresses.tokenFactory;
-    const tokenFactoryContract = TokenAbi__factory.connect(
-      tokenFactory,
-      options.wallet,
-    );
-
-    const mintAmount = BN.parseUnits(amount, token.decimals);
-    const hash = hashMessage(token.symbol);
-    const identity: IdentityInput = {
-      Address: {
-        value: options.wallet.address.toB256(),
-      },
+  ): Promise<WriteTransactionResponse> {
+    const forward: CoinQuantityLike = {
+      amount,
+      assetId: token.assetId,
     };
 
-    const tx = await tokenFactoryContract.functions
-      .mint(identity, hash, mintAmount.toString())
-      .txParams({ gasPrice: options.gasPrice });
+    const tx = this.getProxyMarketFactory()
+      .functions.deposit()
+      .callParams({ forward });
 
-    return this.sendTransaction(tx, options);
-  };
+    return this.sendTransaction(tx);
+  }
 
-  private sendTransaction = async (
+  async withdraw(
+    amount: string,
+    assetType: AssetType,
+  ): Promise<WriteTransactionResponse> {
+    const tx = this.getProxyMarketFactory().functions.withdraw(
+      amount,
+      assetType as unknown as AssetTypeInput,
+    );
+
+    return this.sendTransaction(tx);
+  }
+
+  async withdrawAll(
+    assets: WithdrawAllType[],
+  ): Promise<WriteTransactionResponse> {
+    const txs = assets.map((asset) =>
+      this.getProxyMarketFactory().functions.withdraw(
+        asset.amount,
+        asset.assetType as unknown as AssetTypeInput,
+      ),
+    );
+
+    const multiTx = this.getProxyMarketFactory().multiCall(txs);
+    return this.sendMultiTransaction(multiTx);
+  }
+
+  async withdrawAssets(
+    assetType: AssetType,
+    allMarketContracts: string[],
+    amount?: string,
+  ): Promise<WriteTransactionResponse> {
+    const withdrawTxs = await prepareFullWithdrawals({
+      wallet: this.options.wallet,
+      allMarketContracts,
+      assetType,
+      amount,
+    });
+
+    const multiTx = this.getProxyMarketFactory().multiCall(withdrawTxs);
+    return this.sendMultiTransaction(multiTx);
+  }
+
+  async withdrawAllAssets(
+    allMarketContracts: string[],
+  ): Promise<WriteTransactionResponse> {
+    const [withdrawTxsBase, withdrawTxsQuote] = await Promise.all([
+      prepareFullWithdrawals({
+        wallet: this.options.wallet,
+        allMarketContracts,
+        assetType: AssetType.Base,
+      }),
+      prepareFullWithdrawals({
+        wallet: this.options.wallet,
+        allMarketContracts,
+        assetType: AssetType.Quote,
+      }),
+    ]);
+
+    const multiTx = this.getProxyMarketFactory().multiCall([
+      ...withdrawTxsBase,
+      ...withdrawTxsQuote,
+    ]);
+    return this.sendMultiTransaction(multiTx);
+  }
+
+  async createOrder(
+    params: CreateOrderParams,
+  ): Promise<WriteTransactionResponse> {
+    const { amount, price, type } = params;
+    const tx = this.getProxyMarketFactory().functions.open_order(
+      amount,
+      type as unknown as OrderTypeInput,
+      price,
+    );
+
+    return this.sendTransaction(tx);
+  }
+
+  async createOrderWithDeposit(
+    params: CreateOrderWithDepositParams,
+    allMarketContracts: string[],
+  ): Promise<WriteTransactionResponse> {
+    const {
+      amount,
+      amountToSpend,
+      amountFee,
+      price,
+      type,
+      depositAssetId,
+      feeAssetId,
+      assetType,
+    } = params;
+
+    const depositAndWithdrawalTxs = await prepareDepositAndWithdrawals({
+      baseMarketFactory: this.getProxyMarketFactory(),
+      wallet: this.options.wallet,
+      amountToSpend,
+      depositAssetId,
+      feeAssetId,
+      amountFee,
+      assetType,
+      allMarketContracts,
+    });
+
+    const txs = [
+      ...depositAndWithdrawalTxs,
+      this.getProxyMarketFactory().functions.open_order(
+        amount,
+        type as unknown as OrderTypeInput,
+        price,
+      ),
+    ];
+
+    const multiTx = this.getProxyMarketFactory().multiCall(txs);
+    return this.sendMultiTransaction(multiTx);
+  }
+
+  async cancelOrder(orderId: string): Promise<WriteTransactionResponse> {
+    const tx = this.getProxyMarketFactory().functions.cancel_order(orderId);
+
+    return this.sendTransaction(tx);
+  }
+
+  async matchOrders(
+    sellOrderId: string,
+    buyOrderId: string,
+  ): Promise<WriteTransactionResponse> {
+    const tx = this.getProxyMarketFactory().functions.match_order_pair(
+      sellOrderId,
+      buyOrderId,
+    );
+
+    return this.sendTransaction(tx);
+  }
+
+  async fulfillOrderMany(
+    params: FulfillOrderManyParams,
+  ): Promise<WriteTransactionResponse> {
+    const { amount, orderType, limitType, price, slippage, orders } = params;
+    const tx = this.getProxyMarketFactory().functions.fulfill_order_many(
+      amount,
+      orderType as unknown as OrderTypeInput,
+      limitType as unknown as LimitTypeInput,
+      price,
+      slippage,
+      orders,
+    );
+
+    return this.sendTransaction(tx);
+  }
+
+  async fulfillOrderManyWithDeposit(
+    params: FulfillOrderManyWithDepositParams,
+    allMarketContracts: string[],
+  ): Promise<WriteTransactionResponse> {
+    const {
+      amount,
+      orderType,
+      limitType,
+      price,
+      slippage,
+      orders,
+      amountToSpend,
+      amountFee,
+      assetType,
+      depositAssetId,
+      feeAssetId,
+    } = params;
+
+    const depositAndWithdrawalTxs = await prepareDepositAndWithdrawals({
+      baseMarketFactory: this.getProxyMarketFactory(),
+      wallet: this.options.wallet,
+      amountToSpend,
+      depositAssetId,
+      assetType,
+      allMarketContracts,
+      amountFee,
+      feeAssetId,
+    });
+
+    const txs = [
+      ...depositAndWithdrawalTxs,
+      this.getProxyMarketFactory().functions.fulfill_order_many(
+        amount,
+        orderType as unknown as OrderTypeInput,
+        limitType as unknown as LimitTypeInput,
+        price,
+        slippage,
+        orders,
+      ),
+    ];
+
+    const multiTx = this.getProxyMarketFactory().multiCall(txs);
+    return this.sendMultiTransaction(multiTx);
+  }
+
+  async mintToken(
+    token: Asset,
+    amount: string,
+  ): Promise<WriteTransactionResponse> {
+    const mintAmount = BN.parseUnits(amount, token.decimals);
+
+    const asset: AssetIdInput = { bits: token.assetId };
+    const identity: IdentityInput = {
+      Address: { bits: this.options.wallet.address.toB256() },
+    };
+
+    const tx = this.multiAssetContract.functions.mint(
+      identity,
+      asset,
+      mintAmount.toString(),
+    );
+
+    return this.sendTransaction(tx);
+  }
+
+  private async sendTransaction(
     tx: FunctionInvocationScope,
-    options: Options,
-  ): Promise<WriteTransactionResponse> => {
+  ): Promise<WriteTransactionResponse> {
     const { gasUsed } = await tx.getTransactionCost();
-    const gasLimit = gasUsed.mul(options.gasLimitMultiplier).toString();
+    const gasLimit = gasUsed.mul(this.options.gasLimitMultiplier).toString();
     const res = await tx.txParams({ gasLimit }).call();
+    const data = await res.waitForResult();
 
     return {
       transactionId: res.transactionId,
-      value: res.value,
+      value: data.value,
     };
-  };
+  }
+
+  private async sendMultiTransaction(
+    txs: MultiCallInvocationScope,
+  ): Promise<WriteTransactionResponse> {
+    const { gasUsed } = await txs.getTransactionCost();
+    const gasLimit = gasUsed.mul(this.options.gasLimitMultiplier).toString();
+    const res = await txs.txParams({ gasLimit }).call();
+    const data = await res.waitForResult();
+
+    return {
+      transactionId: res.transactionId,
+      value: data.value,
+    };
+  }
 }

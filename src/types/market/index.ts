@@ -8,5 +8,5 @@
   Fuels version: 0.96.1
 */
 
-export { SparkProxy } from './SparkProxy';
-export { SparkProxyFactory } from './SparkProxyFactory';
+export { SparkMarket } from './SparkMarket';
+export { SparkMarketFactory } from './SparkMarketFactory';

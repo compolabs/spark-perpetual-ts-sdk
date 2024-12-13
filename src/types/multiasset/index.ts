@@ -5,8 +5,8 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 
 /*
-  Fuels version: 0.96.1
+  Fuels version: 0.94.8
 */
 
-export { SparkProxy } from './SparkProxy';
-export { SparkProxyFactory } from './SparkProxyFactory';
+export { MultiassetContract } from './MultiassetContract';
+export { MultiassetContractFactory } from './MultiassetContractFactory';
