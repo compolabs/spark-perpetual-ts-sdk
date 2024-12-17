@@ -5,8 +5,8 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 
 /*
-  Fuels version: 0.94.8
+  Fuels version: 0.97.1
 */
 
-export { MultiassetContract } from './MultiassetContract';
-export { MultiassetContractFactory } from './MultiassetContractFactory';
+export { AccountBalance } from './AccountBalance';
+export { AccountBalanceFactory } from './AccountBalanceFactory';

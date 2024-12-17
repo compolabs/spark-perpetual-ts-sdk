@@ -13,7 +13,6 @@ import {
   AssetIdInput,
   IdentityInput,
 } from "./types/multiasset/MultiassetContract";
-
 import BN from "./utils/BN";
 import { createContract } from "./utils/createContract";
 import { prepareDepositAndWithdrawals } from "./utils/prepareDepositAndWithdrawals";

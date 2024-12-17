@@ -5,8 +5,8 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 
 /*
-  Fuels version: 0.96.1
+  Fuels version: 0.97.1
 */
 
-export { SparkRegistry } from './SparkRegistry';
-export { SparkRegistryFactory } from './SparkRegistryFactory';
+export { Vault } from './Vault';
+export { VaultFactory } from './VaultFactory';

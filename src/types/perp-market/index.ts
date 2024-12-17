@@ -8,5 +8,5 @@
   Fuels version: 0.97.1
 */
 
-export { Proxy } from './Proxy';
-export { ProxyFactory } from './ProxyFactory';
+export { PerpMarket } from './PerpMarket';
+export { PerpMarketFactory } from './PerpMarketFactory';

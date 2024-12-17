@@ -4,7 +4,6 @@ import { Undefinable } from "tsdef";
 import { AccountOutput, IdentityInput } from "./types/market/SparkMarket";
 import { Vec } from "./types/registry/common";
 import { AssetIdInput } from "./types/registry/SparkRegistry";
-
 import BN from "./utils/BN";
 import { createContract } from "./utils/createContract";
 import {
@@ -48,6 +47,56 @@ export class ReadActions {
       },
     };
   }
+
+  // account balance
+  // get_account_balance: FunctionFragment;
+  // get_all_pending_funding_payment: FunctionFragment;
+  // get_all_trader_positions: FunctionFragment;
+  // get_base_tokens: FunctionFragment;
+  // get_funding: FunctionFragment;
+  // get_funding_delta: FunctionFragment;
+  // get_funding_growth_global: FunctionFragment;
+  // get_funding_rate: FunctionFragment;
+  // get_liquidatable_position_size: FunctionFragment;
+  // get_margin_requirement: FunctionFragment;
+  // get_margin_requirement_for_liquidation: FunctionFragment;
+  // get_pending_funding_payment: FunctionFragment;
+  // get_pnl: FunctionFragment;
+  // get_protocol_fee_rate: FunctionFragment;
+  // get_settlement_token_balance_and_unrealized_pnl: FunctionFragment;
+  // get_settlement_token_balance_and_unrealized_pnl_by_vault: FunctionFragment;
+  // get_taker_open_notional: FunctionFragment;
+  // get_taker_position_size: FunctionFragment;
+  // get_total_abs_position_value: FunctionFragment;
+  // get_total_position_value: FunctionFragment;
+
+  // clearing
+  // get_account_value: FunctionFragment;
+  // get_liquidated_position_size_and_notional: FunctionFragment;
+  // get_margin_requirement_for_liquidation: FunctionFragment;
+  // get_market: FunctionFragment;
+  // get_taker_fee_rate: FunctionFragment;
+  // get_taker_open_notional: FunctionFragment;
+  // get_taker_position: FunctionFragment;
+  // get_taker_position_safe: FunctionFragment;
+
+  // perp market
+  // get_latest_twap: FunctionFragment;
+  // get_mark_price: FunctionFragment;
+  // get_market_price: FunctionFragment;
+  // get_order: FunctionFragment;
+  // get_total_trader_order_base: FunctionFragment;
+  // get_trader_orders: FunctionFragment;
+  // get_twaps: FunctionFragment;
+
+  // vault
+  // get_account_value_and_total_collateral_value: FunctionFragment;
+  // get_collateral_balance: FunctionFragment;
+  // get_free_collateral: FunctionFragment;
+  // get_free_collateral_by_token: FunctionFragment;
+  // get_max_abs_position_size: FunctionFragment;
+  // get_max_repaid_settlement_and_liquidatable_collateral: FunctionFragment;
+  // get_non_settlement_token_balance: FunctionFragment;
 
   async getOrderbookVersion(): Promise<{ address: string; version: number }> {
     const data = await this.registryFactory.functions.config().get();

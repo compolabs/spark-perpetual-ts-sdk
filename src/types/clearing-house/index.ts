@@ -5,8 +5,8 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 
 /*
-  Fuels version: 0.96.1
+  Fuels version: 0.97.1
 */
 
-export { SparkMarket } from './SparkMarket';
-export { SparkMarketFactory } from './SparkMarketFactory';
+export { ClearingHouse } from './ClearingHouse';
+export { ClearingHouseFactory } from './ClearingHouseFactory';
