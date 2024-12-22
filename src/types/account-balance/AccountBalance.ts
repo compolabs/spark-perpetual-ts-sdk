@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 
 /*
-  Fuels version: 0.97.1
+  Fuels version: 0.97.2
 */
 
 import { Contract, Interface } from "fuels";
@@ -22,8 +22,8 @@ import type {
 
 import type { Enum, Vec } from "./common";
 
-export enum ErrorInput { AccessDenied = 'AccessDenied', NotEnoughFreeCollateralByImRatio = 'NotEnoughFreeCollateralByImRatio' };
-export enum ErrorOutput { AccessDenied = 'AccessDenied', NotEnoughFreeCollateralByImRatio = 'NotEnoughFreeCollateralByImRatio' };
+export enum ErrorInput { AccessDenied = 'AccessDenied', NotEnoughFreeCollateralByImRatio = 'NotEnoughFreeCollateralByImRatio', ZeroPrice = 'ZeroPrice' };
+export enum ErrorOutput { AccessDenied = 'AccessDenied', NotEnoughFreeCollateralByImRatio = 'NotEnoughFreeCollateralByImRatio', ZeroPrice = 'ZeroPrice' };
 export type IdentityInput = Enum<{ Address: AddressInput, ContractId: ContractIdInput }>;
 export type IdentityOutput = Enum<{ Address: AddressOutput, ContractId: ContractIdOutput }>;
 
@@ -37,16 +37,21 @@ export type AssetIdInput = { bits: string };
 export type AssetIdOutput = AssetIdInput;
 export type ContractIdInput = { bits: string };
 export type ContractIdOutput = ContractIdInput;
+export type FundingInput = { last_funding_growth_global: I64Input, last_settled_timestamp: BigNumberish };
+export type FundingOutput = { last_funding_growth_global: I64Output, last_settled_timestamp: BN };
 export type I64Input = { underlying: BigNumberish };
 export type I64Output = { underlying: BN };
 export type OwedRealizedPnlChangeEventInput = { trader: IdentityInput, owed_realized_pnl: I64Input };
 export type OwedRealizedPnlChangeEventOutput = { trader: IdentityOutput, owed_realized_pnl: I64Output };
 
 export type AccountBalanceConfigurables = Partial<{
-  PROXY_CONTRACT: ContractIdInput;
   FULLY_CLOSED_RATIO: BigNumberish;
   SETTLEMENT_TOKEN: AssetIdInput;
   DUST: BigNumberish;
+  VERSION: BigNumberish;
+  VAULT: ContractIdInput;
+  INSURANCE_FUND: ContractIdInput;
+  TREASURY: IdentityInput;
 }>;
 
 const abi = {
@@ -61,36 +66,40 @@ const abi = {
     {
       "type": "(struct compolabs_sway_libs::signed_integers::i64::I64, struct compolabs_sway_libs::signed_integers::i64::I64)",
       "concreteTypeId": "2dc9f1d874ea07098074d9faab0f3a78ab65b0a242a057f23fa7cc57eeda134e",
-      "metadataTypeId": 2
+      "metadataTypeId": 0
     },
     {
       "type": "(struct compolabs_sway_libs::signed_integers::i64::I64, struct compolabs_sway_libs::signed_integers::i64::I64, struct compolabs_sway_libs::signed_integers::i64::I64, u64)",
       "concreteTypeId": "18e6eeb4dc6c8adc7987e433a20e6f448393f0529643892c0a6196e5052544c9",
-      "metadataTypeId": 3
-    },
-    {
-      "type": "(struct compolabs_sway_libs::signed_integers::i64::I64, u64)",
-      "concreteTypeId": "615e425782085f675574878c7d432fe0923c5934f5b330fb2684c5005254a9d8",
-      "metadataTypeId": 1
+      "metadataTypeId": 2
     },
     {
       "type": "(struct std::asset_id::AssetId, struct account_balance_abi::data_structures::AccountBalance)",
       "concreteTypeId": "85124d4d4054de2e2cfb0d52db5dcf06cb063ee1b23de974ccd69adc4c843ee5",
-      "metadataTypeId": 0
+      "metadataTypeId": 1
+    },
+    {
+      "type": "bool",
+      "concreteTypeId": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903"
     },
     {
       "type": "enum account_balance_abi::errors::Error",
       "concreteTypeId": "8763a76d860a0dc464f395e8b6eb87d38360622db2ad34851c7ac8ce1e57df41",
-      "metadataTypeId": 5
+      "metadataTypeId": 4
     },
     {
       "type": "enum std::identity::Identity",
       "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
-      "metadataTypeId": 6
+      "metadataTypeId": 5
     },
     {
       "type": "struct account_balance_abi::data_structures::AccountBalance",
       "concreteTypeId": "679c3b8c7552bd8aa3e04c230be4c0dcb6a3a3a4cc0db1103c7e2da7ab9085ca",
+      "metadataTypeId": 8
+    },
+    {
+      "type": "struct account_balance_abi::data_structures::Funding",
+      "concreteTypeId": "6ef48c093dad6d00d9213e4d1538cadfa085d033fcaae26e54261c4c478a5746",
       "metadataTypeId": 9
     },
     {
@@ -135,6 +144,10 @@ const abi = {
       ]
     },
     {
+      "type": "u32",
+      "concreteTypeId": "d7649d428b9ff33d188ecbf38a7e4d8fd167fa01b2e10fe9a8f9308e52f1d7cc"
+    },
+    {
       "type": "u64",
       "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
     }
@@ -146,11 +159,11 @@ const abi = {
       "components": [
         {
           "name": "__tuple_element",
-          "typeId": 14
+          "typeId": 10
         },
         {
           "name": "__tuple_element",
-          "typeId": 9
+          "typeId": 10
         }
       ]
     },
@@ -160,31 +173,17 @@ const abi = {
       "components": [
         {
           "name": "__tuple_element",
-          "typeId": 10
+          "typeId": 14
         },
         {
           "name": "__tuple_element",
-          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-        }
-      ]
-    },
-    {
-      "type": "(_, _)",
-      "metadataTypeId": 2,
-      "components": [
-        {
-          "name": "__tuple_element",
-          "typeId": 10
-        },
-        {
-          "name": "__tuple_element",
-          "typeId": 10
+          "typeId": 8
         }
       ]
     },
     {
       "type": "(_, _, _, _)",
-      "metadataTypeId": 3,
+      "metadataTypeId": 2,
       "components": [
         {
           "name": "__tuple_element",
@@ -206,11 +205,11 @@ const abi = {
     },
     {
       "type": "b256",
-      "metadataTypeId": 4
+      "metadataTypeId": 3
     },
     {
       "type": "enum account_balance_abi::errors::Error",
-      "metadataTypeId": 5,
+      "metadataTypeId": 4,
       "components": [
         {
           "name": "AccessDenied",
@@ -219,12 +218,16 @@ const abi = {
         {
           "name": "NotEnoughFreeCollateralByImRatio",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "ZeroPrice",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         }
       ]
     },
     {
       "type": "enum std::identity::Identity",
-      "metadataTypeId": 6,
+      "metadataTypeId": 5,
       "components": [
         {
           "name": "Address",
@@ -238,15 +241,15 @@ const abi = {
     },
     {
       "type": "generic T",
-      "metadataTypeId": 7
+      "metadataTypeId": 6
     },
     {
       "type": "raw untyped ptr",
-      "metadataTypeId": 8
+      "metadataTypeId": 7
     },
     {
       "type": "struct account_balance_abi::data_structures::AccountBalance",
-      "metadataTypeId": 9,
+      "metadataTypeId": 8,
       "components": [
         {
           "name": "taker_position_size",
@@ -259,6 +262,20 @@ const abi = {
         {
           "name": "last_tw_premium_growth_global",
           "typeId": 10
+        }
+      ]
+    },
+    {
+      "type": "struct account_balance_abi::data_structures::Funding",
+      "metadataTypeId": 9,
+      "components": [
+        {
+          "name": "last_funding_growth_global",
+          "typeId": 10
+        },
+        {
+          "name": "last_settled_timestamp",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ]
     },
@@ -278,7 +295,7 @@ const abi = {
       "components": [
         {
           "name": "trader",
-          "typeId": 6
+          "typeId": 5
         },
         {
           "name": "base_token",
@@ -286,7 +303,7 @@ const abi = {
         },
         {
           "name": "account_balance",
-          "typeId": 9
+          "typeId": 8
         },
         {
           "name": "timestamp",
@@ -300,7 +317,7 @@ const abi = {
       "components": [
         {
           "name": "trader",
-          "typeId": 6
+          "typeId": 5
         },
         {
           "name": "owed_realized_pnl",
@@ -314,7 +331,7 @@ const abi = {
       "components": [
         {
           "name": "bits",
-          "typeId": 4
+          "typeId": 3
         }
       ]
     },
@@ -324,7 +341,7 @@ const abi = {
       "components": [
         {
           "name": "bits",
-          "typeId": 4
+          "typeId": 3
         }
       ]
     },
@@ -334,7 +351,7 @@ const abi = {
       "components": [
         {
           "name": "bits",
-          "typeId": 4
+          "typeId": 3
         }
       ]
     },
@@ -344,7 +361,7 @@ const abi = {
       "components": [
         {
           "name": "ptr",
-          "typeId": 8
+          "typeId": 7
         },
         {
           "name": "cap",
@@ -352,7 +369,7 @@ const abi = {
         }
       ],
       "typeParameters": [
-        7
+        6
       ]
     },
     {
@@ -365,7 +382,7 @@ const abi = {
           "typeArguments": [
             {
               "name": "",
-              "typeId": 7
+              "typeId": 6
             }
           ]
         },
@@ -375,7 +392,7 @@ const abi = {
         }
       ],
       "typeParameters": [
-        7
+        6
       ]
     }
   ],
@@ -415,7 +432,7 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "execute_trade",
+      "name": "execute_trade_a",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -438,7 +455,7 @@ const abi = {
           "concreteTypeId": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce"
         }
       ],
-      "name": "modify_owed_realized_pnl",
+      "name": "modify_owed_realized_pnl_a",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -469,7 +486,7 @@ const abi = {
           "concreteTypeId": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce"
         }
       ],
-      "name": "modify_position",
+      "name": "modify_position_a",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -492,7 +509,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "register_base_token",
+      "name": "register_base_token_a",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -511,7 +528,7 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "settle_all_funding",
+      "name": "settle_all_funding_a",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -530,7 +547,7 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "settle_bad_debt",
+      "name": "settle_bad_debt_a",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -553,7 +570,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "settle_funding",
+      "name": "settle_funding_a",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -572,7 +589,7 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "settle_owed_realized_pnl",
+      "name": "settle_owed_realized_pnl_a",
       "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
       "attributes": [
         {
@@ -595,7 +612,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "settle_position_in_closed_market",
+      "name": "settle_position_in_closed_market_a",
       "output": "18e6eeb4dc6c8adc7987e433a20e6f448393f0529643892c0a6196e5052544c9",
       "attributes": [
         {
@@ -614,7 +631,7 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "update_insurance_fund_fee_share",
+      "name": "update_insurance_fund_fee_share_a",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -632,7 +649,7 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "update_max_funding_rate",
+      "name": "update_max_funding_rate_a",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -650,7 +667,7 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "update_protocol_fee_rate",
+      "name": "update_protocol_fee_rate_a",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -676,7 +693,7 @@ const abi = {
           "concreteTypeId": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce"
         }
       ],
-      "name": "update_tw_premium_growth_global",
+      "name": "update_tw_premium_growth_global_a",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -699,7 +716,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_account_balance",
+      "name": "get_account_balance_a",
       "output": "679c3b8c7552bd8aa3e04c230be4c0dcb6a3a3a4cc0db1103c7e2da7ab9085ca",
       "attributes": [
         {
@@ -717,7 +734,25 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "get_all_pending_funding_payment",
+      "name": "get_account_collateral_values_a",
+      "output": "2dc9f1d874ea07098074d9faab0f3a78ab65b0a242a057f23fa7cc57eeda134e",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "trader",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        }
+      ],
+      "name": "get_all_pending_funding_payment_a",
       "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
       "attributes": [
         {
@@ -735,7 +770,7 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "get_all_trader_positions",
+      "name": "get_all_trader_positions_a",
       "output": "3956ef73fc22281580d20415cdb2174205b20b76ae2b1a1c5c3d1fee942cf097",
       "attributes": [
         {
@@ -753,8 +788,48 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "get_base_tokens",
+      "name": "get_base_tokens_a",
       "output": "8b2275934873f381a769c82334e6f66595eeb350d8b2dd012eef4d9bb117942b",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "trader",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        }
+      ],
+      "name": "get_free_collateral_a",
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "trader",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        },
+        {
+          "name": "token",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        }
+      ],
+      "name": "get_free_collateral_by_token_a",
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
       "attributes": [
         {
           "name": "storage",
@@ -771,8 +846,8 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_funding",
-      "output": "615e425782085f675574878c7d432fe0923c5934f5b330fb2684c5005254a9d8",
+      "name": "get_funding_a",
+      "output": "6ef48c093dad6d00d9213e4d1538cadfa085d033fcaae26e54261c4c478a5746",
       "attributes": [
         {
           "name": "storage",
@@ -793,7 +868,7 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "get_funding_delta",
+      "name": "get_funding_delta_a",
       "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
       "attributes": [
         {
@@ -811,7 +886,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_funding_growth_global",
+      "name": "get_funding_growth_global_a",
       "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
       "attributes": [
         {
@@ -829,7 +904,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_funding_rate",
+      "name": "get_funding_rate_a",
       "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
       "attributes": [
         {
@@ -855,7 +930,7 @@ const abi = {
           "concreteTypeId": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce"
         }
       ],
-      "name": "get_liquidatable_position_size",
+      "name": "get_liquidatable_position_size_a",
       "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
       "attributes": [
         {
@@ -873,7 +948,7 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "get_margin_requirement",
+      "name": "get_margin_requirement_a",
       "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
       "attributes": [
         {
@@ -895,7 +970,25 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "get_margin_requirement_for_liquidation",
+      "name": "get_margin_requirement_for_liquidation_a",
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "trader",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        }
+      ],
+      "name": "get_max_repaid_settlement_a",
       "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
       "attributes": [
         {
@@ -917,7 +1010,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_pending_funding_payment",
+      "name": "get_pending_funding_payment_a",
       "output": "2dc9f1d874ea07098074d9faab0f3a78ab65b0a242a057f23fa7cc57eeda134e",
       "attributes": [
         {
@@ -935,7 +1028,7 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "get_pnl",
+      "name": "get_pnl_a",
       "output": "2dc9f1d874ea07098074d9faab0f3a78ab65b0a242a057f23fa7cc57eeda134e",
       "attributes": [
         {
@@ -948,7 +1041,7 @@ const abi = {
     },
     {
       "inputs": [],
-      "name": "get_protocol_fee_rate",
+      "name": "get_protocol_fee_rate_a",
       "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
       "attributes": [
         {
@@ -966,29 +1059,7 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "get_settlement_token_balance_and_unrealized_pnl",
-      "output": "2dc9f1d874ea07098074d9faab0f3a78ab65b0a242a057f23fa7cc57eeda134e",
-      "attributes": [
-        {
-          "name": "storage",
-          "arguments": [
-            "read"
-          ]
-        }
-      ]
-    },
-    {
-      "inputs": [
-        {
-          "name": "trader",
-          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
-        },
-        {
-          "name": "settlement_token_collateral",
-          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-        }
-      ],
-      "name": "get_settlement_token_balance_and_unrealized_pnl_by_vault",
+      "name": "get_settlement_token_balance_and_unrealized_pnl_a",
       "output": "2dc9f1d874ea07098074d9faab0f3a78ab65b0a242a057f23fa7cc57eeda134e",
       "attributes": [
         {
@@ -1010,7 +1081,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_taker_open_notional",
+      "name": "get_taker_open_notional_a",
       "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
       "attributes": [
         {
@@ -1032,7 +1103,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_taker_position_size",
+      "name": "get_taker_position_size_a",
       "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
       "attributes": [
         {
@@ -1050,7 +1121,7 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "get_total_abs_position_value",
+      "name": "get_total_abs_position_value_a",
       "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
       "attributes": [
         {
@@ -1072,8 +1143,26 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_total_position_value",
+      "name": "get_total_position_value_a",
       "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "trader",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        }
+      ],
+      "name": "is_liquidatable_a",
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
       "attributes": [
         {
           "name": "storage",
@@ -1086,39 +1175,54 @@ const abi = {
   ],
   "loggedTypes": [
     {
-      "logId": "9755825306656705988",
-      "concreteTypeId": "8763a76d860a0dc464f395e8b6eb87d38360622db2ad34851c7ac8ce1e57df41"
-    },
-    {
       "logId": "749985618763319060",
       "concreteTypeId": "0a687bf2590a0714c134c743325abd1f1cfc20e81839bab254749129a8e1c58c"
     },
     {
       "logId": "8539181551650721385",
       "concreteTypeId": "76814460f2b5ce69a0885186c9e4f655a646c682bd0112b276bbf3d6b6c86b6b"
+    },
+    {
+      "logId": "9755825306656705988",
+      "concreteTypeId": "8763a76d860a0dc464f395e8b6eb87d38360622db2ad34851c7ac8ce1e57df41"
     }
   ],
   "messagesTypes": [],
   "configurables": [
     {
-      "name": "PROXY_CONTRACT",
-      "concreteTypeId": "29c10735d33b5159f0c71ee1dbd17b36a3e69e41f00fab0d42e1bd9f428d8a54",
-      "offset": 80856
-    },
-    {
       "name": "FULLY_CLOSED_RATIO",
       "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
-      "offset": 80848
+      "offset": 79904
     },
     {
       "name": "SETTLEMENT_TOKEN",
       "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974",
-      "offset": 80888
+      "offset": 79944
     },
     {
       "name": "DUST",
       "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
-      "offset": 80840
+      "offset": 79896
+    },
+    {
+      "name": "VERSION",
+      "concreteTypeId": "d7649d428b9ff33d188ecbf38a7e4d8fd167fa01b2e10fe9a8f9308e52f1d7cc",
+      "offset": 80048
+    },
+    {
+      "name": "VAULT",
+      "concreteTypeId": "29c10735d33b5159f0c71ee1dbd17b36a3e69e41f00fab0d42e1bd9f428d8a54",
+      "offset": 80016
+    },
+    {
+      "name": "INSURANCE_FUND",
+      "concreteTypeId": "29c10735d33b5159f0c71ee1dbd17b36a3e69e41f00fab0d42e1bd9f428d8a54",
+      "offset": 79912
+    },
+    {
+      "name": "TREASURY",
+      "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
+      "offset": 79976
     }
   ]
 };
@@ -1148,39 +1252,43 @@ export class AccountBalanceInterface extends Interface {
   }
 
   declare functions: {
-    execute_trade: FunctionFragment;
-    modify_owed_realized_pnl: FunctionFragment;
-    modify_position: FunctionFragment;
-    register_base_token: FunctionFragment;
-    settle_all_funding: FunctionFragment;
-    settle_bad_debt: FunctionFragment;
-    settle_funding: FunctionFragment;
-    settle_owed_realized_pnl: FunctionFragment;
-    settle_position_in_closed_market: FunctionFragment;
-    update_insurance_fund_fee_share: FunctionFragment;
-    update_max_funding_rate: FunctionFragment;
-    update_protocol_fee_rate: FunctionFragment;
-    update_tw_premium_growth_global: FunctionFragment;
-    get_account_balance: FunctionFragment;
-    get_all_pending_funding_payment: FunctionFragment;
-    get_all_trader_positions: FunctionFragment;
-    get_base_tokens: FunctionFragment;
-    get_funding: FunctionFragment;
-    get_funding_delta: FunctionFragment;
-    get_funding_growth_global: FunctionFragment;
-    get_funding_rate: FunctionFragment;
-    get_liquidatable_position_size: FunctionFragment;
-    get_margin_requirement: FunctionFragment;
-    get_margin_requirement_for_liquidation: FunctionFragment;
-    get_pending_funding_payment: FunctionFragment;
-    get_pnl: FunctionFragment;
-    get_protocol_fee_rate: FunctionFragment;
-    get_settlement_token_balance_and_unrealized_pnl: FunctionFragment;
-    get_settlement_token_balance_and_unrealized_pnl_by_vault: FunctionFragment;
-    get_taker_open_notional: FunctionFragment;
-    get_taker_position_size: FunctionFragment;
-    get_total_abs_position_value: FunctionFragment;
-    get_total_position_value: FunctionFragment;
+    execute_trade_a: FunctionFragment;
+    modify_owed_realized_pnl_a: FunctionFragment;
+    modify_position_a: FunctionFragment;
+    register_base_token_a: FunctionFragment;
+    settle_all_funding_a: FunctionFragment;
+    settle_bad_debt_a: FunctionFragment;
+    settle_funding_a: FunctionFragment;
+    settle_owed_realized_pnl_a: FunctionFragment;
+    settle_position_in_closed_market_a: FunctionFragment;
+    update_insurance_fund_fee_share_a: FunctionFragment;
+    update_max_funding_rate_a: FunctionFragment;
+    update_protocol_fee_rate_a: FunctionFragment;
+    update_tw_premium_growth_global_a: FunctionFragment;
+    get_account_balance_a: FunctionFragment;
+    get_account_collateral_values_a: FunctionFragment;
+    get_all_pending_funding_payment_a: FunctionFragment;
+    get_all_trader_positions_a: FunctionFragment;
+    get_base_tokens_a: FunctionFragment;
+    get_free_collateral_a: FunctionFragment;
+    get_free_collateral_by_token_a: FunctionFragment;
+    get_funding_a: FunctionFragment;
+    get_funding_delta_a: FunctionFragment;
+    get_funding_growth_global_a: FunctionFragment;
+    get_funding_rate_a: FunctionFragment;
+    get_liquidatable_position_size_a: FunctionFragment;
+    get_margin_requirement_a: FunctionFragment;
+    get_margin_requirement_for_liquidation_a: FunctionFragment;
+    get_max_repaid_settlement_a: FunctionFragment;
+    get_pending_funding_payment_a: FunctionFragment;
+    get_pnl_a: FunctionFragment;
+    get_protocol_fee_rate_a: FunctionFragment;
+    get_settlement_token_balance_and_unrealized_pnl_a: FunctionFragment;
+    get_taker_open_notional_a: FunctionFragment;
+    get_taker_position_size_a: FunctionFragment;
+    get_total_abs_position_value_a: FunctionFragment;
+    get_total_position_value_a: FunctionFragment;
+    is_liquidatable_a: FunctionFragment;
   };
 }
 
@@ -1190,39 +1298,43 @@ export class AccountBalance extends Contract {
 
   declare interface: AccountBalanceInterface;
   declare functions: {
-    execute_trade: InvokeFunction<[sell_trader: IdentityInput, buy_trader: IdentityInput, base_token: AssetIdInput, trade_amount: BigNumberish, trade_value: BigNumberish, seller_fee: I64Input, buyer_fee: I64Input, matcher: IdentityInput], void>;
-    modify_owed_realized_pnl: InvokeFunction<[trader: IdentityInput, amount: I64Input], void>;
-    modify_position: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput, exchanged_position_size: I64Input, exchanged_position_notional: I64Input], void>;
-    register_base_token: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], void>;
-    settle_all_funding: InvokeFunction<[trader: IdentityInput], void>;
-    settle_bad_debt: InvokeFunction<[trader: IdentityInput], void>;
-    settle_funding: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], void>;
-    settle_owed_realized_pnl: InvokeFunction<[trader: IdentityInput], I64Output>;
-    settle_position_in_closed_market: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], [I64Output, I64Output, I64Output, BN]>;
-    update_insurance_fund_fee_share: InvokeFunction<[insurance_fund_fee_share: BigNumberish], void>;
-    update_max_funding_rate: InvokeFunction<[max_funding_rate: BigNumberish], void>;
-    update_protocol_fee_rate: InvokeFunction<[protocol_fee_rate: BigNumberish], void>;
-    update_tw_premium_growth_global: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput, last_tw_premium_growth_global: I64Input], void>;
-    get_account_balance: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], AccountBalanceOutput>;
-    get_all_pending_funding_payment: InvokeFunction<[trader: IdentityInput], I64Output>;
-    get_all_trader_positions: InvokeFunction<[trader: IdentityInput], Vec<[AssetIdOutput, AccountBalanceOutput]>>;
-    get_base_tokens: InvokeFunction<[trader: IdentityInput], Vec<AssetIdOutput>>;
-    get_funding: InvokeFunction<[token: AssetIdInput], [I64Output, BN]>;
-    get_funding_delta: InvokeFunction<[market_twap: BigNumberish, index_twap: BigNumberish], I64Output>;
-    get_funding_growth_global: InvokeFunction<[base_token: AssetIdInput], I64Output>;
-    get_funding_rate: InvokeFunction<[base_token: AssetIdInput], I64Output>;
-    get_liquidatable_position_size: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput, account_value: I64Input], I64Output>;
-    get_margin_requirement: InvokeFunction<[trader: IdentityInput], BN>;
-    get_margin_requirement_for_liquidation: InvokeFunction<[trader: IdentityInput, buffer: BigNumberish], BN>;
-    get_pending_funding_payment: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], [I64Output, I64Output]>;
-    get_pnl: InvokeFunction<[trader: IdentityInput], [I64Output, I64Output]>;
-    get_protocol_fee_rate: InvokeFunction<[], BN>;
-    get_settlement_token_balance_and_unrealized_pnl: InvokeFunction<[trader: IdentityInput], [I64Output, I64Output]>;
-    get_settlement_token_balance_and_unrealized_pnl_by_vault: InvokeFunction<[trader: IdentityInput, settlement_token_collateral: BigNumberish], [I64Output, I64Output]>;
-    get_taker_open_notional: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
-    get_taker_position_size: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
-    get_total_abs_position_value: InvokeFunction<[trader: IdentityInput], BN>;
-    get_total_position_value: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
+    execute_trade_a: InvokeFunction<[sell_trader: IdentityInput, buy_trader: IdentityInput, base_token: AssetIdInput, trade_amount: BigNumberish, trade_value: BigNumberish, seller_fee: I64Input, buyer_fee: I64Input, matcher: IdentityInput], void>;
+    modify_owed_realized_pnl_a: InvokeFunction<[trader: IdentityInput, amount: I64Input], void>;
+    modify_position_a: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput, exchanged_position_size: I64Input, exchanged_position_notional: I64Input], void>;
+    register_base_token_a: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], void>;
+    settle_all_funding_a: InvokeFunction<[trader: IdentityInput], void>;
+    settle_bad_debt_a: InvokeFunction<[trader: IdentityInput], void>;
+    settle_funding_a: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], void>;
+    settle_owed_realized_pnl_a: InvokeFunction<[trader: IdentityInput], I64Output>;
+    settle_position_in_closed_market_a: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], [I64Output, I64Output, I64Output, BN]>;
+    update_insurance_fund_fee_share_a: InvokeFunction<[insurance_fund_fee_share: BigNumberish], void>;
+    update_max_funding_rate_a: InvokeFunction<[max_funding_rate: BigNumberish], void>;
+    update_protocol_fee_rate_a: InvokeFunction<[protocol_fee_rate: BigNumberish], void>;
+    update_tw_premium_growth_global_a: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput, last_tw_premium_growth_global: I64Input], void>;
+    get_account_balance_a: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], AccountBalanceOutput>;
+    get_account_collateral_values_a: InvokeFunction<[trader: IdentityInput], [I64Output, I64Output]>;
+    get_all_pending_funding_payment_a: InvokeFunction<[trader: IdentityInput], I64Output>;
+    get_all_trader_positions_a: InvokeFunction<[trader: IdentityInput], Vec<[AssetIdOutput, AccountBalanceOutput]>>;
+    get_base_tokens_a: InvokeFunction<[trader: IdentityInput], Vec<AssetIdOutput>>;
+    get_free_collateral_a: InvokeFunction<[trader: IdentityInput], BN>;
+    get_free_collateral_by_token_a: InvokeFunction<[trader: IdentityInput, token: AssetIdInput], BN>;
+    get_funding_a: InvokeFunction<[token: AssetIdInput], FundingOutput>;
+    get_funding_delta_a: InvokeFunction<[market_twap: BigNumberish, index_twap: BigNumberish], I64Output>;
+    get_funding_growth_global_a: InvokeFunction<[base_token: AssetIdInput], I64Output>;
+    get_funding_rate_a: InvokeFunction<[base_token: AssetIdInput], I64Output>;
+    get_liquidatable_position_size_a: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput, account_value: I64Input], I64Output>;
+    get_margin_requirement_a: InvokeFunction<[trader: IdentityInput], BN>;
+    get_margin_requirement_for_liquidation_a: InvokeFunction<[trader: IdentityInput, buffer: BigNumberish], BN>;
+    get_max_repaid_settlement_a: InvokeFunction<[trader: IdentityInput], BN>;
+    get_pending_funding_payment_a: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], [I64Output, I64Output]>;
+    get_pnl_a: InvokeFunction<[trader: IdentityInput], [I64Output, I64Output]>;
+    get_protocol_fee_rate_a: InvokeFunction<[], BN>;
+    get_settlement_token_balance_and_unrealized_pnl_a: InvokeFunction<[trader: IdentityInput], [I64Output, I64Output]>;
+    get_taker_open_notional_a: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
+    get_taker_position_size_a: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
+    get_total_abs_position_value_a: InvokeFunction<[trader: IdentityInput], BN>;
+    get_total_position_value_a: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
+    is_liquidatable_a: InvokeFunction<[trader: IdentityInput], boolean>;
   };
 
   constructor(

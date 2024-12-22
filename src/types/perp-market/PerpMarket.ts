@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 
 /*
-  Fuels version: 0.97.1
+  Fuels version: 0.97.2
 */
 
 import { Contract, Interface } from "fuels";
@@ -23,10 +23,16 @@ import type {
 
 import type { Option, Enum, Vec } from "./common";
 
-export enum ErrorInput { AccessDenied = 'AccessDenied', FreeCollateralMoreThanZero = 'FreeCollateralMoreThanZero', NoOrdersFound = 'NoOrdersFound', OrdersCantBeMatched = 'OrdersCantBeMatched', NoMarketPriceForMarket = 'NoMarketPriceForMarket', ZeroSize = 'ZeroSize' };
-export enum ErrorOutput { AccessDenied = 'AccessDenied', FreeCollateralMoreThanZero = 'FreeCollateralMoreThanZero', NoOrdersFound = 'NoOrdersFound', OrdersCantBeMatched = 'OrdersCantBeMatched', NoMarketPriceForMarket = 'NoMarketPriceForMarket', ZeroSize = 'ZeroSize' };
+export enum AccessErrorInput { NotOwner = 'NotOwner' };
+export enum AccessErrorOutput { NotOwner = 'NotOwner' };
+export enum ErrorInput { AccessDenied = 'AccessDenied', MarketAlreadyExists = 'MarketAlreadyExists', MarketNotFound = 'MarketNotFound', MarketNotPaused = 'MarketNotPaused', NoOrdersFound = 'NoOrdersFound', OrdersCantBeMatched = 'OrdersCantBeMatched', NoMarketPriceForMarket = 'NoMarketPriceForMarket', ZeroSize = 'ZeroSize' };
+export enum ErrorOutput { AccessDenied = 'AccessDenied', MarketAlreadyExists = 'MarketAlreadyExists', MarketNotFound = 'MarketNotFound', MarketNotPaused = 'MarketNotPaused', NoOrdersFound = 'NoOrdersFound', OrdersCantBeMatched = 'OrdersCantBeMatched', NoMarketPriceForMarket = 'NoMarketPriceForMarket', ZeroSize = 'ZeroSize' };
 export type IdentityInput = Enum<{ Address: AddressInput, ContractId: ContractIdInput }>;
 export type IdentityOutput = Enum<{ Address: AddressOutput, ContractId: ContractIdOutput }>;
+export enum MarketEventIdentifierInput { MarketCreateEvent = 'MarketCreateEvent', MarketCloseEvent = 'MarketCloseEvent', MarketPauseEvent = 'MarketPauseEvent', MarketUnpauseEvent = 'MarketUnpauseEvent' };
+export enum MarketEventIdentifierOutput { MarketCreateEvent = 'MarketCreateEvent', MarketCloseEvent = 'MarketCloseEvent', MarketPauseEvent = 'MarketPauseEvent', MarketUnpauseEvent = 'MarketUnpauseEvent' };
+export enum MarketStatusInput { Opened = 'Opened', Paused = 'Paused', Closed = 'Closed' };
+export enum MarketStatusOutput { Opened = 'Opened', Paused = 'Paused', Closed = 'Closed' };
 export enum OrderEventIdentifierInput { OrderOpenEvent = 'OrderOpenEvent', OrderRemoveUncollaterizedEvent = 'OrderRemoveUncollaterizedEvent', OrderRemoveEvent = 'OrderRemoveEvent', OrderRemoveAllEvent = 'OrderRemoveAllEvent', OrderMatchEvent = 'OrderMatchEvent', OrderFulfillEvent = 'OrderFulfillEvent' };
 export enum OrderEventIdentifierOutput { OrderOpenEvent = 'OrderOpenEvent', OrderRemoveUncollaterizedEvent = 'OrderRemoveUncollaterizedEvent', OrderRemoveEvent = 'OrderRemoveEvent', OrderRemoveAllEvent = 'OrderRemoveAllEvent', OrderMatchEvent = 'OrderMatchEvent', OrderFulfillEvent = 'OrderFulfillEvent' };
 
@@ -38,6 +44,10 @@ export type ContractIdInput = { bits: string };
 export type ContractIdOutput = ContractIdInput;
 export type I64Input = { underlying: BigNumberish };
 export type I64Output = { underlying: BN };
+export type MarketInput = { asset_id: AssetIdInput, decimal: BigNumberish, price_feed: string, im_ratio: BigNumberish, mm_ratio: BigNumberish, status: MarketStatusInput, paused_index_price: Option<BigNumberish>, paused_timestamp: Option<BigNumberish>, closed_price: Option<BigNumberish> };
+export type MarketOutput = { asset_id: AssetIdOutput, decimal: number, price_feed: string, im_ratio: BN, mm_ratio: BN, status: MarketStatusOutput, paused_index_price: Option<BN>, paused_timestamp: Option<BN>, closed_price: Option<BN> };
+export type MarketEventInput = { market: MarketInput, sender: IdentityInput, timestamp: BigNumberish, identifier: MarketEventIdentifierInput };
+export type MarketEventOutput = { market: MarketOutput, sender: IdentityOutput, timestamp: BN, identifier: MarketEventIdentifierOutput };
 export type OrderInput = { id: string, trader: IdentityInput, base_token: AssetIdInput, base_size: I64Input, price: BigNumberish };
 export type OrderOutput = { id: string, trader: IdentityOutput, base_token: AssetIdOutput, base_size: I64Output, price: BN };
 export type OrderEventInput = { order_id: string, order: Option<OrderInput>, sender: IdentityInput, timestamp: BigNumberish, identifier: OrderEventIdentifierInput };
@@ -48,9 +58,8 @@ export type TwapInput = { base_token: AssetIdInput, span: BigNumberish, current_
 export type TwapOutput = { base_token: AssetIdOutput, span: BN, current_twap: BN, last_update: BN };
 
 export type PerpMarketConfigurables = Partial<{
-  OWNER: IdentityInput;
-  PROXY_CONTRACT: ContractIdInput;
   DUST: BigNumberish;
+  VERSION: BigNumberish;
 }>;
 
 const abi = {
@@ -93,17 +102,30 @@ const abi = {
     {
       "type": "enum perp_market_abi::errors::Error",
       "concreteTypeId": "7861bf485e22ef4bc3d8c97682388423706f1645ba4187ed42f0db6ca64afd3b",
-      "metadataTypeId": 5
+      "metadataTypeId": 7
+    },
+    {
+      "type": "enum standards::src5::AccessError",
+      "concreteTypeId": "3f702ea3351c9c1ece2b84048006c8034a24cbc2bad2e740d0412b4172951d3d",
+      "metadataTypeId": 8
     },
     {
       "type": "enum std::identity::Identity",
       "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
-      "metadataTypeId": 6
+      "metadataTypeId": 9
+    },
+    {
+      "type": "enum std::option::Option<struct perp_market_abi::data_structures::Market>",
+      "concreteTypeId": "bede0a7be2248169771c17bad34a6bc85260eb58d3ea6f145d1e0078344fae93",
+      "metadataTypeId": 10,
+      "typeArguments": [
+        "26a068f16d5814d69f54c8106a03c4adede0fba494eb23e8f2d48c0d3f449876"
+      ]
     },
     {
       "type": "enum std::option::Option<struct perp_market_abi::data_structures::Order>",
       "concreteTypeId": "e0cbf0dbb779b64e7cadf8373c4fb3e157a4ec08149ecb707e9ff7f3bd1a27e8",
-      "metadataTypeId": 7,
+      "metadataTypeId": 10,
       "typeArguments": [
         "95d2a1a4876bbe2364a7435ed483aab26d7e733a44262235e0017fd5cb70c05c"
       ]
@@ -115,37 +137,42 @@ const abi = {
     {
       "type": "struct compolabs_sway_libs::signed_integers::i64::I64",
       "concreteTypeId": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
-      "metadataTypeId": 10
+      "metadataTypeId": 13
+    },
+    {
+      "type": "struct events::MarketEvent",
+      "concreteTypeId": "065fbff4f6bcd334fba9393f563684d0855bf9a783ff7c0d21a1009a809e298a",
+      "metadataTypeId": 14
     },
     {
       "type": "struct events::OrderEvent",
       "concreteTypeId": "d76b2c2db6e6d727cc4672c51a69e4683505c207adccf614f9cef0c03f256e06",
-      "metadataTypeId": 11
+      "metadataTypeId": 15
     },
     {
       "type": "struct events::TradeEvent",
       "concreteTypeId": "7a0d594453089f5b4287d95d563bec621cd86c745d28c029ffa314f094289664",
-      "metadataTypeId": 12
+      "metadataTypeId": 16
+    },
+    {
+      "type": "struct perp_market_abi::data_structures::Market",
+      "concreteTypeId": "26a068f16d5814d69f54c8106a03c4adede0fba494eb23e8f2d48c0d3f449876",
+      "metadataTypeId": 17
     },
     {
       "type": "struct perp_market_abi::data_structures::Order",
       "concreteTypeId": "95d2a1a4876bbe2364a7435ed483aab26d7e733a44262235e0017fd5cb70c05c",
-      "metadataTypeId": 13
+      "metadataTypeId": 18
     },
     {
       "type": "struct std::asset_id::AssetId",
       "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974",
-      "metadataTypeId": 16
-    },
-    {
-      "type": "struct std::contract_id::ContractId",
-      "concreteTypeId": "29c10735d33b5159f0c71ee1dbd17b36a3e69e41f00fab0d42e1bd9f428d8a54",
-      "metadataTypeId": 17
+      "metadataTypeId": 21
     },
     {
       "type": "struct std::vec::Vec<b256>",
       "concreteTypeId": "32559685d0c9845f059bf9d472a0a38cf77d36c23dfcffe5489e86a65cdd9198",
-      "metadataTypeId": 19,
+      "metadataTypeId": 24,
       "typeArguments": [
         "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
       ]
@@ -153,10 +180,14 @@ const abi = {
     {
       "type": "struct std::vec::Vec<struct perp_market_abi::data_structures::Order>",
       "concreteTypeId": "d3af4b64cab77d46c518631244055968c5ca9ad8016224a5ce529e09a0916c0f",
-      "metadataTypeId": 19,
+      "metadataTypeId": 24,
       "typeArguments": [
         "95d2a1a4876bbe2364a7435ed483aab26d7e733a44262235e0017fd5cb70c05c"
       ]
+    },
+    {
+      "type": "u32",
+      "concreteTypeId": "d7649d428b9ff33d188ecbf38a7e4d8fd167fa01b2e10fe9a8f9308e52f1d7cc"
     },
     {
       "type": "u64",
@@ -184,21 +215,21 @@ const abi = {
       "components": [
         {
           "name": "__tuple_element",
-          "typeId": 7,
+          "typeId": 10,
           "typeArguments": [
             {
               "name": "",
-              "typeId": 14
+              "typeId": 19
             }
           ]
         },
         {
           "name": "__tuple_element",
-          "typeId": 7,
+          "typeId": 10,
           "typeArguments": [
             {
               "name": "",
-              "typeId": 14
+              "typeId": 19
             }
           ]
         }
@@ -210,11 +241,11 @@ const abi = {
       "components": [
         {
           "name": "__tuple_element",
-          "typeId": 6
+          "typeId": 9
         },
         {
           "name": "__tuple_element",
-          "typeId": 16
+          "typeId": 21
         },
         {
           "name": "__tuple_element",
@@ -240,15 +271,15 @@ const abi = {
         },
         {
           "name": "__tuple_element",
-          "typeId": 6
+          "typeId": 9
         },
         {
           "name": "__tuple_element",
-          "typeId": 6
+          "typeId": 9
         },
         {
           "name": "__tuple_element",
-          "typeId": 16
+          "typeId": 21
         },
         {
           "name": "__tuple_element",
@@ -261,8 +292,30 @@ const abi = {
       ]
     },
     {
-      "type": "enum events::OrderEventIdentifier",
+      "type": "enum events::MarketEventIdentifier",
       "metadataTypeId": 4,
+      "components": [
+        {
+          "name": "MarketCreateEvent",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "MarketCloseEvent",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "MarketPauseEvent",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "MarketUnpauseEvent",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        }
+      ]
+    },
+    {
+      "type": "enum events::OrderEventIdentifier",
+      "metadataTypeId": 5,
       "components": [
         {
           "name": "OrderOpenEvent",
@@ -291,15 +344,41 @@ const abi = {
       ]
     },
     {
+      "type": "enum perp_market_abi::data_structures::MarketStatus",
+      "metadataTypeId": 6,
+      "components": [
+        {
+          "name": "Opened",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "Paused",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "Closed",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        }
+      ]
+    },
+    {
       "type": "enum perp_market_abi::errors::Error",
-      "metadataTypeId": 5,
+      "metadataTypeId": 7,
       "components": [
         {
           "name": "AccessDenied",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
         {
-          "name": "FreeCollateralMoreThanZero",
+          "name": "MarketAlreadyExists",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "MarketNotFound",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "MarketNotPaused",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
         {
@@ -321,22 +400,32 @@ const abi = {
       ]
     },
     {
+      "type": "enum standards::src5::AccessError",
+      "metadataTypeId": 8,
+      "components": [
+        {
+          "name": "NotOwner",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        }
+      ]
+    },
+    {
       "type": "enum std::identity::Identity",
-      "metadataTypeId": 6,
+      "metadataTypeId": 9,
       "components": [
         {
           "name": "Address",
-          "typeId": 15
+          "typeId": 20
         },
         {
           "name": "ContractId",
-          "typeId": 17
+          "typeId": 22
         }
       ]
     },
     {
       "type": "enum std::option::Option",
-      "metadataTypeId": 7,
+      "metadataTypeId": 10,
       "components": [
         {
           "name": "None",
@@ -344,24 +433,24 @@ const abi = {
         },
         {
           "name": "Some",
-          "typeId": 8
+          "typeId": 11
         }
       ],
       "typeParameters": [
-        8
+        11
       ]
     },
     {
       "type": "generic T",
-      "metadataTypeId": 8
+      "metadataTypeId": 11
     },
     {
       "type": "raw untyped ptr",
-      "metadataTypeId": 9
+      "metadataTypeId": 12
     },
     {
       "type": "struct compolabs_sway_libs::signed_integers::i64::I64",
-      "metadataTypeId": 10,
+      "metadataTypeId": 13,
       "components": [
         {
           "name": "underlying",
@@ -370,26 +459,16 @@ const abi = {
       ]
     },
     {
-      "type": "struct events::OrderEvent",
-      "metadataTypeId": 11,
+      "type": "struct events::MarketEvent",
+      "metadataTypeId": 14,
       "components": [
         {
-          "name": "order_id",
-          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
-        },
-        {
-          "name": "order",
-          "typeId": 7,
-          "typeArguments": [
-            {
-              "name": "",
-              "typeId": 13
-            }
-          ]
+          "name": "market",
+          "typeId": 17
         },
         {
           "name": "sender",
-          "typeId": 6
+          "typeId": 9
         },
         {
           "name": "timestamp",
@@ -402,20 +481,52 @@ const abi = {
       ]
     },
     {
+      "type": "struct events::OrderEvent",
+      "metadataTypeId": 15,
+      "components": [
+        {
+          "name": "order_id",
+          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        },
+        {
+          "name": "order",
+          "typeId": 10,
+          "typeArguments": [
+            {
+              "name": "",
+              "typeId": 18
+            }
+          ]
+        },
+        {
+          "name": "sender",
+          "typeId": 9
+        },
+        {
+          "name": "timestamp",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "identifier",
+          "typeId": 5
+        }
+      ]
+    },
+    {
       "type": "struct events::TradeEvent",
-      "metadataTypeId": 12,
+      "metadataTypeId": 16,
       "components": [
         {
           "name": "base_token",
-          "typeId": 16
+          "typeId": 21
         },
         {
           "name": "seller",
-          "typeId": 6
+          "typeId": 9
         },
         {
           "name": "buyer",
-          "typeId": 6
+          "typeId": 9
         },
         {
           "name": "trade_size",
@@ -440,8 +551,68 @@ const abi = {
       ]
     },
     {
+      "type": "struct perp_market_abi::data_structures::Market",
+      "metadataTypeId": 17,
+      "components": [
+        {
+          "name": "asset_id",
+          "typeId": 21
+        },
+        {
+          "name": "decimal",
+          "typeId": "d7649d428b9ff33d188ecbf38a7e4d8fd167fa01b2e10fe9a8f9308e52f1d7cc"
+        },
+        {
+          "name": "price_feed",
+          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        },
+        {
+          "name": "im_ratio",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "mm_ratio",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "status",
+          "typeId": 6
+        },
+        {
+          "name": "paused_index_price",
+          "typeId": 10,
+          "typeArguments": [
+            {
+              "name": "",
+              "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+            }
+          ]
+        },
+        {
+          "name": "paused_timestamp",
+          "typeId": 10,
+          "typeArguments": [
+            {
+              "name": "",
+              "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+            }
+          ]
+        },
+        {
+          "name": "closed_price",
+          "typeId": 10,
+          "typeArguments": [
+            {
+              "name": "",
+              "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "type": "struct perp_market_abi::data_structures::Order",
-      "metadataTypeId": 13,
+      "metadataTypeId": 18,
       "components": [
         {
           "name": "id",
@@ -449,15 +620,15 @@ const abi = {
         },
         {
           "name": "trader",
-          "typeId": 6
+          "typeId": 9
         },
         {
           "name": "base_token",
-          "typeId": 16
+          "typeId": 21
         },
         {
           "name": "base_size",
-          "typeId": 10
+          "typeId": 13
         },
         {
           "name": "price",
@@ -467,11 +638,11 @@ const abi = {
     },
     {
       "type": "struct perp_market_abi::data_structures::Twap",
-      "metadataTypeId": 14,
+      "metadataTypeId": 19,
       "components": [
         {
           "name": "base_token",
-          "typeId": 16
+          "typeId": 21
         },
         {
           "name": "span",
@@ -489,7 +660,7 @@ const abi = {
     },
     {
       "type": "struct std::address::Address",
-      "metadataTypeId": 15,
+      "metadataTypeId": 20,
       "components": [
         {
           "name": "bits",
@@ -499,7 +670,7 @@ const abi = {
     },
     {
       "type": "struct std::asset_id::AssetId",
-      "metadataTypeId": 16,
+      "metadataTypeId": 21,
       "components": [
         {
           "name": "bits",
@@ -509,7 +680,7 @@ const abi = {
     },
     {
       "type": "struct std::contract_id::ContractId",
-      "metadataTypeId": 17,
+      "metadataTypeId": 22,
       "components": [
         {
           "name": "bits",
@@ -519,11 +690,11 @@ const abi = {
     },
     {
       "type": "struct std::vec::RawVec",
-      "metadataTypeId": 18,
+      "metadataTypeId": 23,
       "components": [
         {
           "name": "ptr",
-          "typeId": 9
+          "typeId": 12
         },
         {
           "name": "cap",
@@ -531,20 +702,20 @@ const abi = {
         }
       ],
       "typeParameters": [
-        8
+        11
       ]
     },
     {
       "type": "struct std::vec::Vec",
-      "metadataTypeId": 19,
+      "metadataTypeId": 24,
       "components": [
         {
           "name": "buf",
-          "typeId": 18,
+          "typeId": 23,
           "typeArguments": [
             {
               "name": "",
-              "typeId": 8
+              "typeId": 11
             }
           ]
         },
@@ -554,7 +725,7 @@ const abi = {
         }
       ],
       "typeParameters": [
-        8
+        11
       ]
     }
   ],
@@ -566,7 +737,7 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "cancel_all_orders",
+      "name": "cancel_all_orders_m",
       "output": "32559685d0c9845f059bf9d472a0a38cf77d36c23dfcffe5489e86a65cdd9198",
       "attributes": [
         {
@@ -589,7 +760,7 @@ const abi = {
           "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
         }
       ],
-      "name": "cancel_order",
+      "name": "cancel_order_m",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -604,12 +775,55 @@ const abi = {
     {
       "inputs": [
         {
-          "name": "trader",
-          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+          "name": "base_token",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        },
+        {
+          "name": "close_price",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "cancel_uncollaterized_orders",
-      "output": "32559685d0c9845f059bf9d472a0a38cf77d36c23dfcffe5489e86a65cdd9198",
+      "name": "close_market_m",
+      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "base_token",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        },
+        {
+          "name": "decimal",
+          "concreteTypeId": "d7649d428b9ff33d188ecbf38a7e4d8fd167fa01b2e10fe9a8f9308e52f1d7cc"
+        },
+        {
+          "name": "price_feed",
+          "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        },
+        {
+          "name": "im_ratio",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "mm_ratio",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "initial_price",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "name": "create_market_m",
+      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
           "name": "storage",
@@ -631,7 +845,7 @@ const abi = {
           "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
         }
       ],
-      "name": "fulfill_order",
+      "name": "fulfill_order_m",
       "output": "b034117bcdcd8bf7454a53b570b4b591df678a9830bfb5a58b02b8fdc2d87d4c",
       "attributes": [
         {
@@ -654,7 +868,7 @@ const abi = {
           "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
         }
       ],
-      "name": "match_orders",
+      "name": "match_orders_m",
       "output": "805825741793936cc276abb70f75c8358b16167eb63d15c60abb3ef1b9b36bad",
       "attributes": [
         {
@@ -685,7 +899,7 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "open_order",
+      "name": "open_order_m",
       "output": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b",
       "attributes": [
         {
@@ -702,13 +916,9 @@ const abi = {
         {
           "name": "base_token",
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
-        },
-        {
-          "name": "current_twap",
-          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "setup_twap",
+      "name": "pause_market_m",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -723,16 +933,17 @@ const abi = {
     {
       "inputs": [
         {
-          "name": "fee_rate",
-          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+          "name": "base_token",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "update_maker_fee_rate",
+      "name": "unpause_market_m",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
           "name": "storage",
           "arguments": [
+            "read",
             "write"
           ]
         }
@@ -745,7 +956,7 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "update_mark_span",
+      "name": "update_mark_span_m",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -763,7 +974,7 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "update_market_span",
+      "name": "update_market_span_m",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -781,7 +992,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_latest_twap",
+      "name": "get_latest_twap_m",
       "output": "41bd1a98f0a59642d8f824c805b798a5f268d1f7d05808eb05c4189c493f1be0",
       "attributes": [
         {
@@ -799,8 +1010,39 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_mark_price",
+      "name": "get_mark_price_m",
       "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [],
+      "name": "get_mark_span",
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "base_token",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        }
+      ],
+      "name": "get_market_m",
+      "output": "bede0a7be2248169771c17bad34a6bc85260eb58d3ea6f145d1e0078344fae93",
       "attributes": [
         {
           "name": "storage",
@@ -817,7 +1059,20 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_market_price",
+      "name": "get_market_price_m",
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [],
+      "name": "get_market_span",
       "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
       "attributes": [
         {
@@ -835,7 +1090,7 @@ const abi = {
           "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
         }
       ],
-      "name": "get_order",
+      "name": "get_order_m",
       "output": "e0cbf0dbb779b64e7cadf8373c4fb3e157a4ec08149ecb707e9ff7f3bd1a27e8",
       "attributes": [
         {
@@ -857,7 +1112,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_total_trader_order_base",
+      "name": "get_total_trader_order_base_m",
       "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
       "attributes": [
         {
@@ -879,7 +1134,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_trader_orders",
+      "name": "get_trader_orders_m",
       "output": "d3af4b64cab77d46c518631244055968c5ca9ad8016224a5ce529e09a0916c0f",
       "attributes": [
         {
@@ -897,26 +1152,8 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_twaps",
+      "name": "get_twaps_m",
       "output": "70ce4f9303d4050cf8e516d6bb5a1de4803916f9cfab16fe5a878fe30bc6b12c",
-      "attributes": [
-        {
-          "name": "storage",
-          "arguments": [
-            "read"
-          ]
-        }
-      ]
-    },
-    {
-      "inputs": [
-        {
-          "name": "trader",
-          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
-        }
-      ],
-      "name": "has_active_orders",
-      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
       "attributes": [
         {
           "name": "storage",
@@ -937,7 +1174,25 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "has_active_orders_by_token",
+      "name": "has_active_orders_by_token_m",
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "trader",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        }
+      ],
+      "name": "has_active_orders_m",
       "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
       "attributes": [
         {
@@ -951,12 +1206,16 @@ const abi = {
   ],
   "loggedTypes": [
     {
+      "logId": "15522549115516278567",
+      "concreteTypeId": "d76b2c2db6e6d727cc4672c51a69e4683505c207adccf614f9cef0c03f256e06"
+    },
+    {
       "logId": "8674424674830184267",
       "concreteTypeId": "7861bf485e22ef4bc3d8c97682388423706f1645ba4187ed42f0db6ca64afd3b"
     },
     {
-      "logId": "15522549115516278567",
-      "concreteTypeId": "d76b2c2db6e6d727cc4672c51a69e4683505c207adccf614f9cef0c03f256e06"
+      "logId": "459296745847575348",
+      "concreteTypeId": "065fbff4f6bcd334fba9393f563684d0855bf9a783ff7c0d21a1009a809e298a"
     },
     {
       "logId": "10098701174489624218",
@@ -965,33 +1224,28 @@ const abi = {
     {
       "logId": "8794783797310168923",
       "concreteTypeId": "7a0d594453089f5b4287d95d563bec621cd86c745d28c029ffa314f094289664"
+    },
+    {
+      "logId": "4571204900286667806",
+      "concreteTypeId": "3f702ea3351c9c1ece2b84048006c8034a24cbc2bad2e740d0412b4172951d3d"
     }
   ],
   "messagesTypes": [],
   "configurables": [
     {
-      "name": "OWNER",
-      "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
-      "offset": 70704
-    },
-    {
-      "name": "PROXY_CONTRACT",
-      "concreteTypeId": "29c10735d33b5159f0c71ee1dbd17b36a3e69e41f00fab0d42e1bd9f428d8a54",
-      "offset": 70744
-    },
-    {
       "name": "DUST",
       "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
-      "offset": 70696
+      "offset": 75376
+    },
+    {
+      "name": "VERSION",
+      "concreteTypeId": "d7649d428b9ff33d188ecbf38a7e4d8fd167fa01b2e10fe9a8f9308e52f1d7cc",
+      "offset": 75384
     }
   ]
 };
 
 const storageSlots: StorageSlot[] = [
-  {
-    "key": "0cb0e5c648b021292e74c1ffd73a525446fd5695749bb9cb835a2b6ee849d69c",
-    "value": "00000000000001f4000000000000000000000000000000000000000000000000"
-  },
   {
     "key": "6e7d3c6687e6625ea8a349e09f5bf8c115f714284d17099f58cf6ac3f4af10a2",
     "value": "0000000000000384000000000000000000000000000000000000000000000000"
@@ -1008,25 +1262,29 @@ export class PerpMarketInterface extends Interface {
   }
 
   declare functions: {
-    cancel_all_orders: FunctionFragment;
-    cancel_order: FunctionFragment;
-    cancel_uncollaterized_orders: FunctionFragment;
-    fulfill_order: FunctionFragment;
-    match_orders: FunctionFragment;
-    open_order: FunctionFragment;
-    setup_twap: FunctionFragment;
-    update_maker_fee_rate: FunctionFragment;
-    update_mark_span: FunctionFragment;
-    update_market_span: FunctionFragment;
-    get_latest_twap: FunctionFragment;
-    get_mark_price: FunctionFragment;
-    get_market_price: FunctionFragment;
-    get_order: FunctionFragment;
-    get_total_trader_order_base: FunctionFragment;
-    get_trader_orders: FunctionFragment;
-    get_twaps: FunctionFragment;
-    has_active_orders: FunctionFragment;
-    has_active_orders_by_token: FunctionFragment;
+    cancel_all_orders_m: FunctionFragment;
+    cancel_order_m: FunctionFragment;
+    close_market_m: FunctionFragment;
+    create_market_m: FunctionFragment;
+    fulfill_order_m: FunctionFragment;
+    match_orders_m: FunctionFragment;
+    open_order_m: FunctionFragment;
+    pause_market_m: FunctionFragment;
+    unpause_market_m: FunctionFragment;
+    update_mark_span_m: FunctionFragment;
+    update_market_span_m: FunctionFragment;
+    get_latest_twap_m: FunctionFragment;
+    get_mark_price_m: FunctionFragment;
+    get_mark_span: FunctionFragment;
+    get_market_m: FunctionFragment;
+    get_market_price_m: FunctionFragment;
+    get_market_span: FunctionFragment;
+    get_order_m: FunctionFragment;
+    get_total_trader_order_base_m: FunctionFragment;
+    get_trader_orders_m: FunctionFragment;
+    get_twaps_m: FunctionFragment;
+    has_active_orders_by_token_m: FunctionFragment;
+    has_active_orders_m: FunctionFragment;
   };
 }
 
@@ -1036,25 +1294,29 @@ export class PerpMarket extends Contract {
 
   declare interface: PerpMarketInterface;
   declare functions: {
-    cancel_all_orders: InvokeFunction<[trader: IdentityInput], Vec<string>>;
-    cancel_order: InvokeFunction<[trader: IdentityInput, order_id: string], void>;
-    cancel_uncollaterized_orders: InvokeFunction<[trader: IdentityInput], Vec<string>>;
-    fulfill_order: InvokeFunction<[base_size: I64Input, order_id: string], [IdentityOutput, AssetIdOutput, BN, BN]>;
-    match_orders: InvokeFunction<[order1_id: string, order2_id: string], [string, string, IdentityOutput, IdentityOutput, AssetIdOutput, BN, BN]>;
-    open_order: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput, base_size: I64Input, price: BigNumberish], string>;
-    setup_twap: InvokeFunction<[base_token: AssetIdInput, current_twap: BigNumberish], void>;
-    update_maker_fee_rate: InvokeFunction<[fee_rate: BigNumberish], void>;
-    update_mark_span: InvokeFunction<[mark_span: BigNumberish], void>;
-    update_market_span: InvokeFunction<[market_span: BigNumberish], void>;
-    get_latest_twap: InvokeFunction<[base_token: AssetIdInput], [BN, BN]>;
-    get_mark_price: InvokeFunction<[token: AssetIdInput], BN>;
-    get_market_price: InvokeFunction<[token: AssetIdInput], BN>;
-    get_order: InvokeFunction<[order_id: string], Option<OrderOutput>>;
-    get_total_trader_order_base: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
-    get_trader_orders: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], Vec<OrderOutput>>;
-    get_twaps: InvokeFunction<[base_token: AssetIdInput], [Option<TwapOutput>, Option<TwapOutput>]>;
-    has_active_orders: InvokeFunction<[trader: IdentityInput], boolean>;
-    has_active_orders_by_token: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], boolean>;
+    cancel_all_orders_m: InvokeFunction<[trader: IdentityInput], Vec<string>>;
+    cancel_order_m: InvokeFunction<[trader: IdentityInput, order_id: string], void>;
+    close_market_m: InvokeFunction<[base_token: AssetIdInput, close_price: BigNumberish], void>;
+    create_market_m: InvokeFunction<[base_token: AssetIdInput, decimal: BigNumberish, price_feed: string, im_ratio: BigNumberish, mm_ratio: BigNumberish, initial_price: BigNumberish], void>;
+    fulfill_order_m: InvokeFunction<[base_size: I64Input, order_id: string], [IdentityOutput, AssetIdOutput, BN, BN]>;
+    match_orders_m: InvokeFunction<[order1_id: string, order2_id: string], [string, string, IdentityOutput, IdentityOutput, AssetIdOutput, BN, BN]>;
+    open_order_m: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput, base_size: I64Input, price: BigNumberish], string>;
+    pause_market_m: InvokeFunction<[base_token: AssetIdInput], void>;
+    unpause_market_m: InvokeFunction<[base_token: AssetIdInput], void>;
+    update_mark_span_m: InvokeFunction<[mark_span: BigNumberish], void>;
+    update_market_span_m: InvokeFunction<[market_span: BigNumberish], void>;
+    get_latest_twap_m: InvokeFunction<[base_token: AssetIdInput], [BN, BN]>;
+    get_mark_price_m: InvokeFunction<[token: AssetIdInput], BN>;
+    get_mark_span: InvokeFunction<[], BN>;
+    get_market_m: InvokeFunction<[base_token: AssetIdInput], Option<MarketOutput>>;
+    get_market_price_m: InvokeFunction<[token: AssetIdInput], BN>;
+    get_market_span: InvokeFunction<[], BN>;
+    get_order_m: InvokeFunction<[order_id: string], Option<OrderOutput>>;
+    get_total_trader_order_base_m: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
+    get_trader_orders_m: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], Vec<OrderOutput>>;
+    get_twaps_m: InvokeFunction<[base_token: AssetIdInput], [Option<TwapOutput>, Option<TwapOutput>]>;
+    has_active_orders_by_token_m: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], boolean>;
+    has_active_orders_m: InvokeFunction<[trader: IdentityInput], boolean>;
   };
 
   constructor(

@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 
 /*
-  Fuels version: 0.97.1
+  Fuels version: 0.97.2
 */
 
 import { Contract, Interface } from "fuels";
@@ -20,16 +20,14 @@ import type {
   InvokeFunction,
 } from 'fuels';
 
-import type { Option, Enum, Vec } from "./common";
+import type { Enum, Vec } from "./common";
 
-export enum ErrorInput { PositionSizeIsZero = 'PositionSizeIsZero', MarketNotFound = 'MarketNotFound', MarketNotPaused = 'MarketNotPaused', MarketNotOpened = 'MarketNotOpened', MarketAlreadyExists = 'MarketAlreadyExists', CannotLiquidateWhenThereIsStillOrder = 'CannotLiquidateWhenThereIsStillOrder', EnoughAccountValue = 'EnoughAccountValue', WrongLiquidationDirection = 'WrongLiquidationDirection', InsufficientInsuranceFundCapacity = 'InsufficientInsuranceFundCapacity', NotEnoughFreeCollateralByImRatio = 'NotEnoughFreeCollateralByImRatio', AccessDenied = 'AccessDenied' };
-export enum ErrorOutput { PositionSizeIsZero = 'PositionSizeIsZero', MarketNotFound = 'MarketNotFound', MarketNotPaused = 'MarketNotPaused', MarketNotOpened = 'MarketNotOpened', MarketAlreadyExists = 'MarketAlreadyExists', CannotLiquidateWhenThereIsStillOrder = 'CannotLiquidateWhenThereIsStillOrder', EnoughAccountValue = 'EnoughAccountValue', WrongLiquidationDirection = 'WrongLiquidationDirection', InsufficientInsuranceFundCapacity = 'InsufficientInsuranceFundCapacity', NotEnoughFreeCollateralByImRatio = 'NotEnoughFreeCollateralByImRatio', AccessDenied = 'AccessDenied' };
+export enum AccessErrorInput { NotOwner = 'NotOwner' };
+export enum AccessErrorOutput { NotOwner = 'NotOwner' };
+export enum ErrorInput { PositionSizeIsZero = 'PositionSizeIsZero', CannotLiquidateWhenThereIsStillOrder = 'CannotLiquidateWhenThereIsStillOrder', EnoughAccountValue = 'EnoughAccountValue', MarketNotFound = 'MarketNotFound', MarketNotOpened = 'MarketNotOpened', WrongLiquidationDirection = 'WrongLiquidationDirection', InsufficientInsuranceFundCapacity = 'InsufficientInsuranceFundCapacity', NotEnoughFreeCollateralByImRatio = 'NotEnoughFreeCollateralByImRatio', NotEnoughFreeCollateral = 'NotEnoughFreeCollateral', HasFreeCollateral = 'HasFreeCollateral', AccessDenied = 'AccessDenied', ZeroAmount = 'ZeroAmount', NonLiquidatable = 'NonLiquidatable' };
+export enum ErrorOutput { PositionSizeIsZero = 'PositionSizeIsZero', CannotLiquidateWhenThereIsStillOrder = 'CannotLiquidateWhenThereIsStillOrder', EnoughAccountValue = 'EnoughAccountValue', MarketNotFound = 'MarketNotFound', MarketNotOpened = 'MarketNotOpened', WrongLiquidationDirection = 'WrongLiquidationDirection', InsufficientInsuranceFundCapacity = 'InsufficientInsuranceFundCapacity', NotEnoughFreeCollateralByImRatio = 'NotEnoughFreeCollateralByImRatio', NotEnoughFreeCollateral = 'NotEnoughFreeCollateral', HasFreeCollateral = 'HasFreeCollateral', AccessDenied = 'AccessDenied', ZeroAmount = 'ZeroAmount', NonLiquidatable = 'NonLiquidatable' };
 export type IdentityInput = Enum<{ Address: AddressInput, ContractId: ContractIdInput }>;
 export type IdentityOutput = Enum<{ Address: AddressOutput, ContractId: ContractIdOutput }>;
-export enum MarketEventIdentifierInput { MarketCreateEvent = 'MarketCreateEvent', MarketCloseEvent = 'MarketCloseEvent', MarketPauseEvent = 'MarketPauseEvent', MarketUnpauseEvent = 'MarketUnpauseEvent' };
-export enum MarketEventIdentifierOutput { MarketCreateEvent = 'MarketCreateEvent', MarketCloseEvent = 'MarketCloseEvent', MarketPauseEvent = 'MarketPauseEvent', MarketUnpauseEvent = 'MarketUnpauseEvent' };
-export enum MarketStatusInput { Opened = 'Opened', Paused = 'Paused', Closed = 'Closed' };
-export enum MarketStatusOutput { Opened = 'Opened', Paused = 'Paused', Closed = 'Closed' };
 export enum ReentrancyErrorInput { NonReentrant = 'NonReentrant' };
 export enum ReentrancyErrorOutput { NonReentrant = 'NonReentrant' };
 
@@ -41,14 +39,11 @@ export type ContractIdInput = { bits: string };
 export type ContractIdOutput = ContractIdInput;
 export type I64Input = { underlying: BigNumberish };
 export type I64Output = { underlying: BN };
-export type MarketInput = { asset_id: AssetIdInput, decimal: BigNumberish, price_feed: string, im_ratio: BigNumberish, mm_ratio: BigNumberish, status: MarketStatusInput, paused_index_price: Option<BigNumberish>, paused_timestamp: Option<BigNumberish>, closed_price: Option<BigNumberish> };
-export type MarketOutput = { asset_id: AssetIdOutput, decimal: number, price_feed: string, im_ratio: BN, mm_ratio: BN, status: MarketStatusOutput, paused_index_price: Option<BN>, paused_timestamp: Option<BN>, closed_price: Option<BN> };
-export type MarketEventInput = { market: MarketInput, sender: IdentityInput, timestamp: BigNumberish, identifier: MarketEventIdentifierInput };
-export type MarketEventOutput = { market: MarketOutput, sender: IdentityOutput, timestamp: BN, identifier: MarketEventIdentifierOutput };
 
 export type ClearingHouseConfigurables = Partial<{
-  OWNER: IdentityInput;
-  PROXY_CONTRACT: ContractIdInput;
+  VERSION: BigNumberish;
+  VAULT: ContractIdInput;
+  INSURANCE_FUND: ContractIdInput;
 }>;
 
 const abi = {
@@ -66,6 +61,11 @@ const abi = {
       "metadataTypeId": 0
     },
     {
+      "type": "(u64, u64)",
+      "concreteTypeId": "41bd1a98f0a59642d8f824c805b798a5f268d1f7d05808eb05c4189c493f1be0",
+      "metadataTypeId": 1
+    },
+    {
       "type": "b256",
       "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
     },
@@ -79,6 +79,11 @@ const abi = {
       "metadataTypeId": 2
     },
     {
+      "type": "enum standards::src5::AccessError",
+      "concreteTypeId": "3f702ea3351c9c1ece2b84048006c8034a24cbc2bad2e740d0412b4172951d3d",
+      "metadataTypeId": 3
+    },
+    {
       "type": "enum std::identity::Identity",
       "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
       "metadataTypeId": 4
@@ -86,37 +91,27 @@ const abi = {
     {
       "type": "enum sway_libs::reentrancy::errors::ReentrancyError",
       "concreteTypeId": "4d216c57b3357523323f59401c7355785b41bdf832f6e1106272186b94797038",
-      "metadataTypeId": 6
-    },
-    {
-      "type": "struct clearing_house_abi::data_structures::Market",
-      "concreteTypeId": "5050cfb64434371d8b5faada682ab3351f44e7044265c3e53b65d32ad218e3f3",
-      "metadataTypeId": 9
+      "metadataTypeId": 5
     },
     {
       "type": "struct compolabs_sway_libs::signed_integers::i64::I64",
       "concreteTypeId": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
-      "metadataTypeId": 10
-    },
-    {
-      "type": "struct events::MarketEvent",
-      "concreteTypeId": "065fbff4f6bcd334fba9393f563684d0855bf9a783ff7c0d21a1009a809e298a",
-      "metadataTypeId": 11
+      "metadataTypeId": 8
     },
     {
       "type": "struct std::asset_id::AssetId",
       "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974",
-      "metadataTypeId": 13
+      "metadataTypeId": 10
     },
     {
       "type": "struct std::contract_id::ContractId",
       "concreteTypeId": "29c10735d33b5159f0c71ee1dbd17b36a3e69e41f00fab0d42e1bd9f428d8a54",
-      "metadataTypeId": 14
+      "metadataTypeId": 11
     },
     {
       "type": "struct std::vec::Vec<b256>",
       "concreteTypeId": "32559685d0c9845f059bf9d472a0a38cf77d36c23dfcffe5489e86a65cdd9198",
-      "metadataTypeId": 16,
+      "metadataTypeId": 13,
       "typeArguments": [
         "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
       ]
@@ -137,29 +132,25 @@ const abi = {
       "components": [
         {
           "name": "__tuple_element",
-          "typeId": 10
+          "typeId": 8
         },
         {
           "name": "__tuple_element",
-          "typeId": 10
+          "typeId": 8
         }
       ]
     },
     {
-      "type": "enum clearing_house_abi::data_structures::MarketStatus",
+      "type": "(_, _)",
       "metadataTypeId": 1,
       "components": [
         {
-          "name": "Opened",
-          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+          "name": "__tuple_element",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         },
         {
-          "name": "Paused",
-          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
-        },
-        {
-          "name": "Closed",
-          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+          "name": "__tuple_element",
+          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ]
     },
@@ -172,27 +163,19 @@ const abi = {
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
         {
-          "name": "MarketNotFound",
-          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
-        },
-        {
-          "name": "MarketNotPaused",
-          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
-        },
-        {
-          "name": "MarketNotOpened",
-          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
-        },
-        {
-          "name": "MarketAlreadyExists",
-          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
-        },
-        {
           "name": "CannotLiquidateWhenThereIsStillOrder",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
         {
           "name": "EnoughAccountValue",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "MarketNotFound",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "MarketNotOpened",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
         {
@@ -208,29 +191,33 @@ const abi = {
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
         {
+          "name": "NotEnoughFreeCollateral",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "HasFreeCollateral",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
           "name": "AccessDenied",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "ZeroAmount",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "NonLiquidatable",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         }
       ]
     },
     {
-      "type": "enum events::MarketEventIdentifier",
+      "type": "enum standards::src5::AccessError",
       "metadataTypeId": 3,
       "components": [
         {
-          "name": "MarketCreateEvent",
-          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
-        },
-        {
-          "name": "MarketCloseEvent",
-          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
-        },
-        {
-          "name": "MarketPauseEvent",
-          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
-        },
-        {
-          "name": "MarketUnpauseEvent",
+          "name": "NotOwner",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         }
       ]
@@ -241,34 +228,17 @@ const abi = {
       "components": [
         {
           "name": "Address",
-          "typeId": 12
+          "typeId": 9
         },
         {
           "name": "ContractId",
-          "typeId": 14
+          "typeId": 11
         }
-      ]
-    },
-    {
-      "type": "enum std::option::Option",
-      "metadataTypeId": 5,
-      "components": [
-        {
-          "name": "None",
-          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
-        },
-        {
-          "name": "Some",
-          "typeId": 7
-        }
-      ],
-      "typeParameters": [
-        7
       ]
     },
     {
       "type": "enum sway_libs::reentrancy::errors::ReentrancyError",
-      "metadataTypeId": 6,
+      "metadataTypeId": 5,
       "components": [
         {
           "name": "NonReentrant",
@@ -278,75 +248,15 @@ const abi = {
     },
     {
       "type": "generic T",
-      "metadataTypeId": 7
+      "metadataTypeId": 6
     },
     {
       "type": "raw untyped ptr",
-      "metadataTypeId": 8
-    },
-    {
-      "type": "struct clearing_house_abi::data_structures::Market",
-      "metadataTypeId": 9,
-      "components": [
-        {
-          "name": "asset_id",
-          "typeId": 13
-        },
-        {
-          "name": "decimal",
-          "typeId": "d7649d428b9ff33d188ecbf38a7e4d8fd167fa01b2e10fe9a8f9308e52f1d7cc"
-        },
-        {
-          "name": "price_feed",
-          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
-        },
-        {
-          "name": "im_ratio",
-          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-        },
-        {
-          "name": "mm_ratio",
-          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-        },
-        {
-          "name": "status",
-          "typeId": 1
-        },
-        {
-          "name": "paused_index_price",
-          "typeId": 5,
-          "typeArguments": [
-            {
-              "name": "",
-              "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-            }
-          ]
-        },
-        {
-          "name": "paused_timestamp",
-          "typeId": 5,
-          "typeArguments": [
-            {
-              "name": "",
-              "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-            }
-          ]
-        },
-        {
-          "name": "closed_price",
-          "typeId": 5,
-          "typeArguments": [
-            {
-              "name": "",
-              "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-            }
-          ]
-        }
-      ]
+      "metadataTypeId": 7
     },
     {
       "type": "struct compolabs_sway_libs::signed_integers::i64::I64",
-      "metadataTypeId": 10,
+      "metadataTypeId": 8,
       "components": [
         {
           "name": "underlying",
@@ -355,30 +265,8 @@ const abi = {
       ]
     },
     {
-      "type": "struct events::MarketEvent",
-      "metadataTypeId": 11,
-      "components": [
-        {
-          "name": "market",
-          "typeId": 9
-        },
-        {
-          "name": "sender",
-          "typeId": 4
-        },
-        {
-          "name": "timestamp",
-          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-        },
-        {
-          "name": "identifier",
-          "typeId": 3
-        }
-      ]
-    },
-    {
       "type": "struct std::address::Address",
-      "metadataTypeId": 12,
+      "metadataTypeId": 9,
       "components": [
         {
           "name": "bits",
@@ -388,7 +276,7 @@ const abi = {
     },
     {
       "type": "struct std::asset_id::AssetId",
-      "metadataTypeId": 13,
+      "metadataTypeId": 10,
       "components": [
         {
           "name": "bits",
@@ -398,7 +286,7 @@ const abi = {
     },
     {
       "type": "struct std::contract_id::ContractId",
-      "metadataTypeId": 14,
+      "metadataTypeId": 11,
       "components": [
         {
           "name": "bits",
@@ -408,11 +296,11 @@ const abi = {
     },
     {
       "type": "struct std::vec::RawVec",
-      "metadataTypeId": 15,
+      "metadataTypeId": 12,
       "components": [
         {
           "name": "ptr",
-          "typeId": 8
+          "typeId": 7
         },
         {
           "name": "cap",
@@ -420,20 +308,20 @@ const abi = {
         }
       ],
       "typeParameters": [
-        7
+        6
       ]
     },
     {
       "type": "struct std::vec::Vec",
-      "metadataTypeId": 16,
+      "metadataTypeId": 13,
       "components": [
         {
           "name": "buf",
-          "typeId": 15,
+          "typeId": 12,
           "typeArguments": [
             {
               "name": "",
-              "typeId": 7
+              "typeId": 6
             }
           ]
         },
@@ -443,32 +331,14 @@ const abi = {
         }
       ],
       "typeParameters": [
-        7
+        6
       ]
     }
   ],
   "functions": [
     {
-      "inputs": [
-        {
-          "name": "admin",
-          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
-        }
-      ],
-      "name": "add_admin",
-      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
-      "attributes": [
-        {
-          "name": "storage",
-          "arguments": [
-            "write"
-          ]
-        }
-      ]
-    },
-    {
       "inputs": [],
-      "name": "cancel_all_orders",
+      "name": "cancel_all_orders_c",
       "output": "32559685d0c9845f059bf9d472a0a38cf77d36c23dfcffe5489e86a65cdd9198",
       "attributes": null
     },
@@ -479,7 +349,7 @@ const abi = {
           "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
         }
       ],
-      "name": "cancel_order",
+      "name": "cancel_order_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": null
     },
@@ -490,9 +360,16 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "cancel_uncollaterized_orders",
+      "name": "cancel_uncollaterized_orders_c",
       "output": "32559685d0c9845f059bf9d472a0a38cf77d36c23dfcffe5489e86a65cdd9198",
-      "attributes": null
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
     },
     {
       "inputs": [
@@ -505,7 +382,7 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "close_market",
+      "name": "close_market_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -544,9 +421,27 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "create_market",
+      "name": "create_market_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [],
+      "name": "deposit_collateral_c",
+      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
+      "attributes": [
+        {
+          "name": "payable",
+          "arguments": []
+        },
         {
           "name": "storage",
           "arguments": [
@@ -567,7 +462,7 @@ const abi = {
           "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
         }
       ],
-      "name": "fulfill_order",
+      "name": "fulfill_order_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -593,13 +488,40 @@ const abi = {
           "concreteTypeId": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce"
         }
       ],
-      "name": "liquidate",
+      "name": "liquidate_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
           "name": "storage",
           "arguments": [
             "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "trader",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        },
+        {
+          "name": "token",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        },
+        {
+          "name": "settlement_amount",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "name": "liquidate_collateral_c",
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
           ]
         }
       ]
@@ -615,7 +537,7 @@ const abi = {
           "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
         }
       ],
-      "name": "match_orders",
+      "name": "match_orders_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -641,7 +563,7 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "open_order",
+      "name": "open_order_c",
       "output": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b",
       "attributes": [
         {
@@ -664,7 +586,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "pause_market",
+      "name": "pause_market_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -679,31 +601,20 @@ const abi = {
     {
       "inputs": [
         {
-          "name": "admin",
+          "name": "trader",
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "remove_admin",
+      "name": "settle_all_funding_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
           "name": "storage",
           "arguments": [
-            "write"
+            "read"
           ]
         }
       ]
-    },
-    {
-      "inputs": [
-        {
-          "name": "trader",
-          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
-        }
-      ],
-      "name": "settle_all_funding",
-      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
-      "attributes": null
     },
     {
       "inputs": [
@@ -712,7 +623,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "unpause_market",
+      "name": "unpause_market_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -731,9 +642,16 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "update_insurance_fund_fee_share",
+      "name": "update_insurance_fund_fee_share_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
-      "attributes": null
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
     },
     {
       "inputs": [
@@ -742,12 +660,13 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "update_liquidation_penalty_ratio",
+      "name": "update_liquidation_penalty_ratio_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
           "name": "storage",
           "arguments": [
+            "read",
             "write"
           ]
         }
@@ -760,7 +679,7 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "update_matcher_fee_rate",
+      "name": "update_matcher_fee_rate_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -778,47 +697,7 @@ const abi = {
           "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "update_max_funding_rate",
-      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
-      "attributes": null
-    },
-    {
-      "inputs": [
-        {
-          "name": "protocol_fee_rate",
-          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-        }
-      ],
-      "name": "update_protocol_fee_rate",
-      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
-      "attributes": null
-    },
-    {
-      "inputs": [
-        {
-          "name": "fee_rate",
-          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
-        }
-      ],
-      "name": "update_taker_fee_rate",
-      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
-      "attributes": [
-        {
-          "name": "storage",
-          "arguments": [
-            "write"
-          ]
-        }
-      ]
-    },
-    {
-      "inputs": [
-        {
-          "name": "base_token",
-          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
-        }
-      ],
-      "name": "check_market_open",
+      "name": "update_max_funding_rate_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
@@ -832,13 +711,65 @@ const abi = {
     {
       "inputs": [
         {
-          "name": "trader",
+          "name": "protocol_fee_rate",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "name": "update_protocol_fee_rate_c",
+      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "fee_rate",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        }
+      ],
+      "name": "update_taker_fee_rate_c",
+      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "write"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "token",
+          "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        },
+        {
+          "name": "amount",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "recipient",
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "get_account_value",
-      "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
-      "attributes": null
+      "name": "withdraw_collateral_c",
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        }
+      ]
     },
     {
       "inputs": [
@@ -859,7 +790,7 @@ const abi = {
           "concreteTypeId": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce"
         }
       ],
-      "name": "get_liquidated_position_size_and_notional",
+      "name": "get_liquidated_position_size_and_notional_c",
       "output": "2dc9f1d874ea07098074d9faab0f3a78ab65b0a242a057f23fa7cc57eeda134e",
       "attributes": [
         {
@@ -871,25 +802,59 @@ const abi = {
       ]
     },
     {
+      "inputs": [],
+      "name": "get_liquidation_penalty_ratio_c",
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
       "inputs": [
         {
           "name": "trader",
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "get_margin_requirement_for_liquidation",
+      "name": "get_margin_requirement_for_liquidation_c",
       "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
       "attributes": null
     },
     {
+      "inputs": [],
+      "name": "get_matcher_fee_rate_c",
+      "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
       "inputs": [
         {
-          "name": "base_token",
+          "name": "trader",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        },
+        {
+          "name": "base_asset",
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
+        },
+        {
+          "name": "trade_price",
+          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
         }
       ],
-      "name": "get_market",
-      "output": "5050cfb64434371d8b5faada682ab3351f44e7044265c3e53b65d32ad218e3f3",
+      "name": "get_max_abs_position_size_c",
+      "output": "41bd1a98f0a59642d8f824c805b798a5f268d1f7d05808eb05c4189c493f1be0",
       "attributes": [
         {
           "name": "storage",
@@ -901,7 +866,7 @@ const abi = {
     },
     {
       "inputs": [],
-      "name": "get_taker_fee_rate",
+      "name": "get_taker_fee_rate_c",
       "output": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0",
       "attributes": [
         {
@@ -923,7 +888,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_taker_open_notional",
+      "name": "get_taker_open_notional_c",
       "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
       "attributes": null
     },
@@ -938,7 +903,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_taker_position",
+      "name": "get_taker_position_c",
       "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
       "attributes": null
     },
@@ -953,7 +918,7 @@ const abi = {
           "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974"
         }
       ],
-      "name": "get_taker_position_safe",
+      "name": "get_taker_position_safe_c",
       "output": "c35f504fa0cf6c3c54066e2780bc4033982f9a802842793a014ba0f5c699d8ce",
       "attributes": null
     },
@@ -964,7 +929,7 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "is_liquidatable",
+      "name": "is_liquidatable_c",
       "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
       "attributes": null
     },
@@ -975,19 +940,19 @@ const abi = {
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         }
       ],
-      "name": "require_enough_free_collateral",
+      "name": "require_enough_free_collateral_c",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": null
     }
   ],
   "loggedTypes": [
     {
-      "logId": "10586687241907785458",
-      "concreteTypeId": "92eb77f4b212cef2a6614a9f637d5c87e1ba7f0a9b9fb2ef9141b4348ce2f1e4"
+      "logId": "4571204900286667806",
+      "concreteTypeId": "3f702ea3351c9c1ece2b84048006c8034a24cbc2bad2e740d0412b4172951d3d"
     },
     {
-      "logId": "459296745847575348",
-      "concreteTypeId": "065fbff4f6bcd334fba9393f563684d0855bf9a783ff7c0d21a1009a809e298a"
+      "logId": "10586687241907785458",
+      "concreteTypeId": "92eb77f4b212cef2a6614a9f637d5c87e1ba7f0a9b9fb2ef9141b4348ce2f1e4"
     },
     {
       "logId": "5557842539076482339",
@@ -997,14 +962,19 @@ const abi = {
   "messagesTypes": [],
   "configurables": [
     {
-      "name": "OWNER",
-      "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
-      "offset": 75992
+      "name": "VERSION",
+      "concreteTypeId": "d7649d428b9ff33d188ecbf38a7e4d8fd167fa01b2e10fe9a8f9308e52f1d7cc",
+      "offset": 79280
     },
     {
-      "name": "PROXY_CONTRACT",
+      "name": "VAULT",
       "concreteTypeId": "29c10735d33b5159f0c71ee1dbd17b36a3e69e41f00fab0d42e1bd9f428d8a54",
-      "offset": 76032
+      "offset": 79248
+    },
+    {
+      "name": "INSURANCE_FUND",
+      "concreteTypeId": "29c10735d33b5159f0c71ee1dbd17b36a3e69e41f00fab0d42e1bd9f428d8a54",
+      "offset": 79216
     }
   ]
 };
@@ -1030,37 +1000,38 @@ export class ClearingHouseInterface extends Interface {
   }
 
   declare functions: {
-    add_admin: FunctionFragment;
-    cancel_all_orders: FunctionFragment;
-    cancel_order: FunctionFragment;
-    cancel_uncollaterized_orders: FunctionFragment;
-    close_market: FunctionFragment;
-    create_market: FunctionFragment;
-    fulfill_order: FunctionFragment;
-    liquidate: FunctionFragment;
-    match_orders: FunctionFragment;
-    open_order: FunctionFragment;
-    pause_market: FunctionFragment;
-    remove_admin: FunctionFragment;
-    settle_all_funding: FunctionFragment;
-    unpause_market: FunctionFragment;
-    update_insurance_fund_fee_share: FunctionFragment;
-    update_liquidation_penalty_ratio: FunctionFragment;
-    update_matcher_fee_rate: FunctionFragment;
-    update_max_funding_rate: FunctionFragment;
-    update_protocol_fee_rate: FunctionFragment;
-    update_taker_fee_rate: FunctionFragment;
-    check_market_open: FunctionFragment;
-    get_account_value: FunctionFragment;
-    get_liquidated_position_size_and_notional: FunctionFragment;
-    get_margin_requirement_for_liquidation: FunctionFragment;
-    get_market: FunctionFragment;
-    get_taker_fee_rate: FunctionFragment;
-    get_taker_open_notional: FunctionFragment;
-    get_taker_position: FunctionFragment;
-    get_taker_position_safe: FunctionFragment;
-    is_liquidatable: FunctionFragment;
-    require_enough_free_collateral: FunctionFragment;
+    cancel_all_orders_c: FunctionFragment;
+    cancel_order_c: FunctionFragment;
+    cancel_uncollaterized_orders_c: FunctionFragment;
+    close_market_c: FunctionFragment;
+    create_market_c: FunctionFragment;
+    deposit_collateral_c: FunctionFragment;
+    fulfill_order_c: FunctionFragment;
+    liquidate_c: FunctionFragment;
+    liquidate_collateral_c: FunctionFragment;
+    match_orders_c: FunctionFragment;
+    open_order_c: FunctionFragment;
+    pause_market_c: FunctionFragment;
+    settle_all_funding_c: FunctionFragment;
+    unpause_market_c: FunctionFragment;
+    update_insurance_fund_fee_share_c: FunctionFragment;
+    update_liquidation_penalty_ratio_c: FunctionFragment;
+    update_matcher_fee_rate_c: FunctionFragment;
+    update_max_funding_rate_c: FunctionFragment;
+    update_protocol_fee_rate_c: FunctionFragment;
+    update_taker_fee_rate_c: FunctionFragment;
+    withdraw_collateral_c: FunctionFragment;
+    get_liquidated_position_size_and_notional_c: FunctionFragment;
+    get_liquidation_penalty_ratio_c: FunctionFragment;
+    get_margin_requirement_for_liquidation_c: FunctionFragment;
+    get_matcher_fee_rate_c: FunctionFragment;
+    get_max_abs_position_size_c: FunctionFragment;
+    get_taker_fee_rate_c: FunctionFragment;
+    get_taker_open_notional_c: FunctionFragment;
+    get_taker_position_c: FunctionFragment;
+    get_taker_position_safe_c: FunctionFragment;
+    is_liquidatable_c: FunctionFragment;
+    require_enough_free_collateral_c: FunctionFragment;
   };
 }
 
@@ -1070,37 +1041,38 @@ export class ClearingHouse extends Contract {
 
   declare interface: ClearingHouseInterface;
   declare functions: {
-    add_admin: InvokeFunction<[admin: IdentityInput], void>;
-    cancel_all_orders: InvokeFunction<[], Vec<string>>;
-    cancel_order: InvokeFunction<[order: string], void>;
-    cancel_uncollaterized_orders: InvokeFunction<[trader: IdentityInput], Vec<string>>;
-    close_market: InvokeFunction<[base_token: AssetIdInput, close_price: BigNumberish], void>;
-    create_market: InvokeFunction<[base_token: AssetIdInput, decimal: BigNumberish, price_feed: string, im_ratio: BigNumberish, mm_ratio: BigNumberish, initial_price: BigNumberish], void>;
-    fulfill_order: InvokeFunction<[base_size: I64Input, order_id: string], void>;
-    liquidate: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput, position_size_to_be_liquidated: I64Input], void>;
-    match_orders: InvokeFunction<[order1_id: string, order2_id: string], void>;
-    open_order: InvokeFunction<[base_token: AssetIdInput, base_size: I64Input, order_price: BigNumberish], string>;
-    pause_market: InvokeFunction<[base_token: AssetIdInput], void>;
-    remove_admin: InvokeFunction<[admin: IdentityInput], void>;
-    settle_all_funding: InvokeFunction<[trader: IdentityInput], void>;
-    unpause_market: InvokeFunction<[base_token: AssetIdInput], void>;
-    update_insurance_fund_fee_share: InvokeFunction<[insurance_fund_fee_share: BigNumberish], void>;
-    update_liquidation_penalty_ratio: InvokeFunction<[liquidation_penalty_ratio: BigNumberish], void>;
-    update_matcher_fee_rate: InvokeFunction<[fee_rate: BigNumberish], void>;
-    update_max_funding_rate: InvokeFunction<[max_funding_rate: BigNumberish], void>;
-    update_protocol_fee_rate: InvokeFunction<[protocol_fee_rate: BigNumberish], void>;
-    update_taker_fee_rate: InvokeFunction<[fee_rate: BigNumberish], void>;
-    check_market_open: InvokeFunction<[base_token: AssetIdInput], void>;
-    get_account_value: InvokeFunction<[trader: IdentityInput], I64Output>;
-    get_liquidated_position_size_and_notional: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput, account_value: I64Input, position_size_to_be_liquidated: I64Input], [I64Output, I64Output]>;
-    get_margin_requirement_for_liquidation: InvokeFunction<[trader: IdentityInput], BN>;
-    get_market: InvokeFunction<[base_token: AssetIdInput], MarketOutput>;
-    get_taker_fee_rate: InvokeFunction<[], BN>;
-    get_taker_open_notional: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
-    get_taker_position: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
-    get_taker_position_safe: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
-    is_liquidatable: InvokeFunction<[trader: IdentityInput], boolean>;
-    require_enough_free_collateral: InvokeFunction<[trader: IdentityInput], void>;
+    cancel_all_orders_c: InvokeFunction<[], Vec<string>>;
+    cancel_order_c: InvokeFunction<[order: string], void>;
+    cancel_uncollaterized_orders_c: InvokeFunction<[trader: IdentityInput], Vec<string>>;
+    close_market_c: InvokeFunction<[base_token: AssetIdInput, close_price: BigNumberish], void>;
+    create_market_c: InvokeFunction<[base_token: AssetIdInput, decimal: BigNumberish, price_feed: string, im_ratio: BigNumberish, mm_ratio: BigNumberish, initial_price: BigNumberish], void>;
+    deposit_collateral_c: InvokeFunction<[], void>;
+    fulfill_order_c: InvokeFunction<[base_size: I64Input, order_id: string], void>;
+    liquidate_c: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput, position_size_to_be_liquidated: I64Input], void>;
+    liquidate_collateral_c: InvokeFunction<[trader: IdentityInput, token: AssetIdInput, settlement_amount: BigNumberish], BN>;
+    match_orders_c: InvokeFunction<[order1_id: string, order2_id: string], void>;
+    open_order_c: InvokeFunction<[base_token: AssetIdInput, base_size: I64Input, order_price: BigNumberish], string>;
+    pause_market_c: InvokeFunction<[base_token: AssetIdInput], void>;
+    settle_all_funding_c: InvokeFunction<[trader: IdentityInput], void>;
+    unpause_market_c: InvokeFunction<[base_token: AssetIdInput], void>;
+    update_insurance_fund_fee_share_c: InvokeFunction<[insurance_fund_fee_share: BigNumberish], void>;
+    update_liquidation_penalty_ratio_c: InvokeFunction<[liquidation_penalty_ratio: BigNumberish], void>;
+    update_matcher_fee_rate_c: InvokeFunction<[fee_rate: BigNumberish], void>;
+    update_max_funding_rate_c: InvokeFunction<[max_funding_rate: BigNumberish], void>;
+    update_protocol_fee_rate_c: InvokeFunction<[protocol_fee_rate: BigNumberish], void>;
+    update_taker_fee_rate_c: InvokeFunction<[fee_rate: BigNumberish], void>;
+    withdraw_collateral_c: InvokeFunction<[token: AssetIdInput, amount: BigNumberish, recipient: IdentityInput], BN>;
+    get_liquidated_position_size_and_notional_c: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput, account_value: I64Input, position_size_to_be_liquidated: I64Input], [I64Output, I64Output]>;
+    get_liquidation_penalty_ratio_c: InvokeFunction<[], BN>;
+    get_margin_requirement_for_liquidation_c: InvokeFunction<[trader: IdentityInput], BN>;
+    get_matcher_fee_rate_c: InvokeFunction<[], BN>;
+    get_max_abs_position_size_c: InvokeFunction<[trader: IdentityInput, base_asset: AssetIdInput, trade_price: BigNumberish], [BN, BN]>;
+    get_taker_fee_rate_c: InvokeFunction<[], BN>;
+    get_taker_open_notional_c: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
+    get_taker_position_c: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
+    get_taker_position_safe_c: InvokeFunction<[trader: IdentityInput, base_token: AssetIdInput], I64Output>;
+    is_liquidatable_c: InvokeFunction<[trader: IdentityInput], boolean>;
+    require_enough_free_collateral_c: InvokeFunction<[trader: IdentityInput], void>;
   };
 
   constructor(

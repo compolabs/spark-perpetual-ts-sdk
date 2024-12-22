@@ -156,19 +156,6 @@ export interface FulfillOrderManyWithDepositParams {
   assetType: AssetType;
 }
 
-export interface Order {
-  id: string;
-  asset: string;
-  amount: string;
-  initialAmount: string;
-  orderType: OrderType;
-  price: string;
-  status: Status;
-  user: string;
-  timestamp: string;
-  market: string;
-}
-
 export interface GetTradeOrderEventsParams {
   limit: number;
   market: string[];
@@ -223,58 +210,35 @@ export interface UserInfo {
   timestamp: string;
 }
 
-export interface GetUserScoreSnapshotParams {
-  userAddress: string;
-  blockDate: number;
+export enum MarketStatus {
+  Opened = "Opened",
+  Paused = "Paused",
+  Closed = "Closed",
 }
 
-export interface GetTradeEventQueryParams {
-  userAddress: string;
-  toTimestamp: number;
-  fromTimestamp: number;
+export interface Market {
+  assetId: string;
+  decimal: number;
+  priceFeed: string;
+  imRatio: BN;
+  mmRatio: BN;
+  status: MarketStatus;
+  pausedIndexPrice: BN;
+  pausedTimestamp: BN;
+  closedPrice: BN;
 }
 
-export interface SentioApiParams {
-  url: string;
-  apiKey: string;
+export interface Order {
+  id: string;
+  trader: string;
+  baseToken: string;
+  baseSize: BN;
+  price: BN;
 }
 
-export interface GetSentioResponse<T> {
-  runtimeCost: string;
-  result: Result<T>;
-  computeStats: ComputeStats;
-}
-
-interface ComputeStats {
-  computedAt: string;
-  computeCostMs: string;
-  binaryVersionHash: string;
-  computedBy: string;
-  isCached: boolean;
-  isRefreshing: boolean;
-}
-
-export interface Result<T> {
-  columns: string[];
-  columnTypes: ColumnTypes;
-  rows: T[];
-  generatedAt: string;
-  cursor: string;
-}
-
-export interface RowSnapshot {
-  block_date: string;
-  total_value_locked_score: number;
-  tradeVolume: number;
-}
-
-export interface RowTradeEvent {
-  timestamp: string;
-  volume: number;
-}
-
-interface ColumnTypes {
-  block_date: string;
-  total_value_locked_score: string;
-  tradeVolume: string;
+export interface Twap {
+  baseToken: string;
+  span: BN;
+  currentTwap: BN;
+  lastUpdate: BN;
 }
