@@ -1,41 +1,30 @@
-import { Provider, Wallet, WalletLocked, WalletUnlocked } from "fuels";
+import {
+  AbstractAddress,
+  Account,
+  Provider,
+  Wallet,
+  WalletUnlocked,
+} from "fuels";
 
 import { NETWORK_ERROR, NetworkError } from "./utils/NetworkError";
-import { DEFAULT_GAS_LIMIT_MULTIPLIER, DEFAULT_GAS_PRICE } from "./constants";
-import { IndexerApi } from "./IndexerApi";
 import {
-  GraphClientConfig,
-  Options,
-  OptionsSpark,
-  SparkParams,
-} from "./interface";
+  AccountBalanceContract,
+  ClearingHouseContract,
+  PerpMarketContract,
+} from "./contracts";
+import { Options, OptionsSpark, SparkParams } from "./interface";
 
 export class SparkPerpetual {
   private providerPromise: Promise<Provider>;
   private provider?: Provider;
   private options: OptionsSpark;
-  private indexerApi?: IndexerApi;
 
   constructor(params: SparkParams) {
     this.options = {
-      contractAddresses: {
-        proxyMarket: "",
-        ...params.contractAddresses,
-      },
       wallet: params.wallet,
-      gasPrice: params.gasPrice ?? DEFAULT_GAS_PRICE,
-      gasLimitMultiplier:
-        params.gasLimitMultiplier ?? DEFAULT_GAS_LIMIT_MULTIPLIER,
     };
 
     this.providerPromise = Provider.create(params.networkUrl);
-  }
-
-  private get activeIndexerApi(): IndexerApi {
-    if (!this.indexerApi) {
-      throw new Error("Please set the correct active indexer.");
-    }
-    return this.indexerApi;
   }
 
   async getProvider(): Promise<Provider> {
@@ -62,57 +51,39 @@ export class SparkPerpetual {
     return this.options as Options;
   }
 
-  setActiveWallet(wallet?: WalletLocked | WalletUnlocked): void {
-    this.options.wallet = wallet;
+  private async getContract<T>(
+    ContractClass: new (
+      address: string | AbstractAddress,
+      provider: Account | Provider,
+    ) => T,
+    address: string | AbstractAddress,
+    readonly = false,
+  ): Promise<T> {
+    const opts = readonly
+      ? await this.getReadOptions()
+      : this.getWriteOptions();
+
+    return new ContractClass(address, opts.wallet.provider);
   }
 
-  setActiveMarket(contractAddress: string, indexer: GraphClientConfig): void {
-    this.options.contractAddresses.proxyMarket = contractAddress;
-
-    if (this.indexerApi) {
-      this.indexerApi.close();
-    }
-
-    this.indexerApi = new IndexerApi(indexer);
+  async getAccountBalanceContract(
+    address: string | AbstractAddress,
+    readonly = false,
+  ): Promise<AccountBalanceContract> {
+    return this.getContract(AccountBalanceContract, address, readonly);
   }
 
-  // async fetchOrders(
-  //   params: GetOrdersParams,
-  // ): Promise<ApolloQueryResult<{ Order: Order[] }>> {
-  //   return this.activeIndexerApi.getOrders(params);
-  // }
+  async getClearingHouseContract(
+    address: string | AbstractAddress,
+    readonly = false,
+  ): Promise<ClearingHouseContract> {
+    return this.getContract(ClearingHouseContract, address, readonly);
+  }
 
-  // async fetchActiveOrders<T extends OrderType>(
-  //   params: GetActiveOrdersParams,
-  // ): Promise<ApolloQueryResult<ActiveOrderReturn<T>>> {
-  //   return this.activeIndexerApi.getActiveOrders<T>(params);
-  // }
-
-  // subscribeOrders(
-  //   params: GetOrdersParams,
-  // ): Observable<FetchResult<{ Order: Order[] }>> {
-  //   return this.activeIndexerApi.subscribeOrders(params);
-  // }
-
-  // subscribeActiveOrders<T extends OrderType>(
-  //   params: GetActiveOrdersParams,
-  // ): Observable<FetchResult<ActiveOrderReturn<T>>> {
-  //   return this.activeIndexerApi.subscribeActiveOrders<T>(params);
-  // }
-
-  // subscribeTradeOrderEvents(
-  //   params: GetTradeOrderEventsParams,
-  // ): Observable<FetchResult<{ TradeOrderEvent: TradeOrderEvent[] }>> {
-  //   return this.activeIndexerApi.subscribeTradeOrderEvents(params);
-  // }
-
-  // async fetchVolume(params: GetTradeOrderEventsParams): Promise<Volume> {
-  //   return this.activeIndexerApi.getVolume(params);
-  // }
-
-  // subscribeUserInfo(
-  //   params: UserInfoParams,
-  // ): Observable<FetchResult<{ User: UserInfo[] }>> {
-  //   return this.activeIndexerApi.subscribeUserInfo(params);
-  // }
+  async getPerpMarketContract(
+    address: string | AbstractAddress,
+    readonly = false,
+  ): Promise<PerpMarketContract> {
+    return this.getContract(PerpMarketContract, address, readonly);
+  }
 }

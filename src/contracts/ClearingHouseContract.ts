@@ -74,10 +74,7 @@ export class ClearingHouseContract {
   }
 
   async depositCollateralC(): Promise<WriteTransactionResponse> {
-    // Похоже, нужно отправить средства (payable).
-    // Если вы используете Custom params, тут можно указать:
-    // const tx = this.contract.functions.deposit_collateral_c().callParams({amount: ...})
-    // В данном примере просто отправляем вызов без доп параметров.
+    // TODO: Implement payable logic
     const tx = this.contract.functions.deposit_collateral_c();
     return sendTransaction(tx);
   }
@@ -138,10 +135,9 @@ export class ClearingHouseContract {
     baseSize: BN,
     orderPrice: BN,
   ): Promise<string> {
+    // TODO: Implement payable logic
     const baseTokenInput = createAssetIdInput(baseToken);
     const baseSizeI64 = createI64Input(baseSize);
-
-    // Если нужно передать amount - делаем .callParams({ amount: ... })
     const { value } = await this.contract.functions
       .open_order_c(baseTokenInput, baseSizeI64, orderPrice.toString())
       .get();
