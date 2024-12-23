@@ -2,30 +2,19 @@ import { WalletLocked, WalletUnlocked } from "fuels";
 
 import BN from "./utils/BN";
 
-export type MarketStatusOutput = "Opened" | "Paused" | "Closed";
-
-export interface PerpetualContracts {
-  tokenFactory: string;
-  vault: string;
-  accountBalance: string;
-  clearingHouse: string;
-  perpMarket: string;
-  pyth: string;
-  proxy: string;
-  insuranceFund: string;
+export interface OrderbookContracts {
+  proxyMarket: string;
+  registry: string;
+  multiAsset: string;
 }
 
 export interface Asset {
-  address: string;
+  assetId: string;
   symbol: string;
   decimals: number;
 }
 
-interface BaseOptions {
-  contractAddresses: PerpetualContracts;
-  gasPrice: string;
-  gasLimitMultiplier: string;
-}
+interface BaseOptions {}
 
 export interface Options extends BaseOptions {
   wallet: WalletLocked | WalletUnlocked;
@@ -35,102 +24,127 @@ export interface OptionsSpark extends BaseOptions {
   wallet?: WalletLocked | WalletUnlocked;
 }
 
-export interface SparkPerpetualParams {
+export interface GraphClientConfig {
+  httpUrl: string;
+  wsUrl: string;
+}
+
+export interface SparkParams {
   networkUrl: string;
-  indexerApiUrl: string;
-  contractAddresses?: PerpetualContracts;
   wallet?: WalletLocked | WalletUnlocked;
-  gasPrice?: string;
-  gasLimitMultiplier?: string;
-  pythUrl?: string;
 }
-
-export interface PerpTrades {
-  baseToken: string;
-  seller: string;
-  buyer: string;
-  tradeSize: string;
-  tradePrice: string;
-  sellOrderId: string;
-  buyOrderId: string;
-  timestamp: string;
-}
-
-export interface PerpAllTraderPosition {
-  baseTokenAddress: string;
-  lastTwPremiumGrowthGlobal: BN;
-  takerOpenNational: BN;
-  takerPositionSize: BN;
-}
-
-export interface PerpMarket {
-  baseTokenAddress: string;
-  quoteTokenAddress: string;
-  imRatio: BN;
-  mmRatio: BN;
-  status: MarketStatusOutput;
-  pausedIndexPrice?: BN;
-  pausedTimestamp?: number;
-  closedPrice?: BN;
-}
-
-export interface PerpTraderOrder {
-  id: string;
-  baseSize: BN;
-  baseTokenAddress: string;
-  orderPrice: BN;
-  trader: string;
-  timestamp: number;
-}
-
-export type FetchOrdersParams<T = string> = {
-  baseToken: T;
-  limit: number;
-  trader?: T;
-  type?: "BUY" | "SELL";
-  isActive?: boolean;
-};
-
-export type FetchTradesParams<T = string> = {
-  baseToken: T;
-  limit: number;
-  trader?: T;
-};
-
-export type MarketCreateEvent = {
-  id: string;
-  assetId: string;
-  decimal: number;
-};
-
-export type PerpMarketVolume = {
-  predictedFundingRate: BN;
-  averageFunding24h: BN;
-  openInterest: BN;
-  volume24h: BN;
-};
-
-export type PerpMaxAbsPositionSize = {
-  shortSize: BN;
-  longSize: BN;
-};
-
-export type PerpPendingFundingPayment = {
-  fundingPayment: BN;
-  fundingGrowthPayment: BN;
-};
 
 export type WriteTransactionResponse = {
   transactionId: string;
   value: unknown;
 };
 
-export type UserSupplyBorrow = {
-  supply: BN;
-  borrow: BN;
+export interface GraphQLResponse<T> {
+  result: T;
+  errors?: { message: string }[];
+}
+
+export enum OrderType {
+  Buy = "Buy",
+  Sell = "Sell",
+}
+
+export enum AssetType {
+  Base = "Base",
+  Quote = "Quote",
+}
+
+export enum LimitType {
+  IOC = "IOC",
+  FOK = "FOK",
+  GTC = "GTC",
+}
+
+export type Status = "Active" | "Canceled" | "Closed";
+
+export interface GetOrdersParams {
+  limit: number;
+  market?: string[];
+  orderType?: OrderType;
+  status?: Status[];
+  user?: string;
+  asset?: string;
+  offset?: number;
+}
+
+export interface GetActiveOrdersParams {
+  limit: number;
+  market: string[];
+  orderType: OrderType;
+  user?: string;
+  asset?: string;
+  offset?: number;
+}
+
+export type ActiveOrderReturn<T extends OrderType> = T extends OrderType.Buy
+  ? { ActiveBuyOrder: Order[] }
+  : { ActiveSellOrder: Order[] };
+
+export interface GetTradeOrderEventsParams {
+  limit: number;
+  market: string[];
+}
+
+export interface TradeOrderEvent {
+  id: string;
+  timestamp: string;
+  tradePrice: string;
+  tradeSize: string;
+  sellerIsMaker: boolean;
+}
+
+export type Volume = {
+  volume24h: string;
+  high24h: string;
+  low24h: string;
 };
 
-export interface GraphQLResponse<T> {
-  data: T;
-  errors?: { message: string }[];
+export interface UserInfoParams {
+  id: string;
+}
+
+export interface UserInfo {
+  id: string;
+  active: number;
+  canceled: number;
+  closed: number;
+  timestamp: string;
+}
+
+export enum MarketStatus {
+  Opened = "Opened",
+  Paused = "Paused",
+  Closed = "Closed",
+}
+
+export interface Market {
+  assetId: string;
+  decimal: number;
+  priceFeed: string;
+  imRatio: BN;
+  mmRatio: BN;
+  status: MarketStatus;
+  pausedIndexPrice: BN;
+  pausedTimestamp: BN;
+  closedPrice: BN;
+}
+
+export interface Order {
+  id: string;
+  trader: string;
+  baseToken: string;
+  baseSize: BN;
+  price: BN;
+}
+
+export interface Twap {
+  baseToken: string;
+  span: BN;
+  currentTwap: BN;
+  lastUpdate: BN;
 }
