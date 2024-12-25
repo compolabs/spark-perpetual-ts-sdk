@@ -148,3 +148,8 @@ export interface Twap {
   currentTwap: BN;
   lastUpdate: BN;
 }
+
+export interface Deposit {
+  amount: BN;
+  token: string;
+}

@@ -11,6 +11,7 @@ import {
   AccountBalanceContract,
   ClearingHouseContract,
   PerpMarketContract,
+  VaultContract,
 } from "./contracts";
 import { Options, OptionsSpark, SparkParams } from "./interface";
 
@@ -85,5 +86,12 @@ export class SparkPerpetual {
     readonly = false,
   ): Promise<PerpMarketContract> {
     return this.getContract(PerpMarketContract, address, readonly);
+  }
+
+  async getVaultContract(
+    address: string | AbstractAddress,
+    readonly = false,
+  ): Promise<VaultContract> {
+    return this.getContract(VaultContract, address, readonly);
   }
 }

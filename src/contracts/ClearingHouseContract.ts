@@ -108,18 +108,16 @@ export class ClearingHouseContract {
     trader: string,
     token: string,
     settlementAmount: BN,
-  ): Promise<BN> {
+  ): Promise<WriteTransactionResponse> {
     const traderInput = createAddressIdentity(trader);
     const tokenInput = createAssetIdInput(token);
-    const { value } = await this.contract.functions
-      .liquidate_collateral_c(
-        traderInput,
-        tokenInput,
-        settlementAmount.toString(),
-      )
-      .get();
+    const tx = this.contract.functions.liquidate_collateral_c(
+      traderInput,
+      tokenInput,
+      settlementAmount.toString(),
+    );
 
-    return fuelBNToBN(value);
+    return sendTransaction(tx);
   }
 
   async matchOrdersC(
@@ -134,14 +132,16 @@ export class ClearingHouseContract {
     baseToken: string,
     baseSize: BN,
     orderPrice: BN,
-  ): Promise<string> {
-    // TODO: Implement payable logic
+  ): Promise<WriteTransactionResponse> {
     const baseTokenInput = createAssetIdInput(baseToken);
     const baseSizeI64 = createI64Input(baseSize);
-    const { value } = await this.contract.functions
-      .open_order_c(baseTokenInput, baseSizeI64, orderPrice.toString())
-      .get();
-    return value;
+    const tx = this.contract.functions.open_order_c(
+      baseTokenInput,
+      baseSizeI64,
+      orderPrice.toString(),
+    );
+
+    return sendTransaction(tx);
   }
 
   async pauseMarketC(baseToken: string): Promise<WriteTransactionResponse> {
@@ -216,14 +216,16 @@ export class ClearingHouseContract {
     token: string,
     amount: BN,
     recipient: string,
-  ): Promise<BN> {
+  ): Promise<WriteTransactionResponse> {
     const tokenInput = createAssetIdInput(token);
     const recipientInput = createAddressIdentity(recipient);
-    const { value } = await this.contract.functions
-      .withdraw_collateral_c(tokenInput, amount.toString(), recipientInput)
-      .get();
+    const tx = this.contract.functions.withdraw_collateral_c(
+      tokenInput,
+      amount.toString(),
+      recipientInput,
+    );
 
-    return fuelBNToBN(value);
+    return sendTransaction(tx);
   }
 
   async getLiquidatedPositionSizeAndNotionalC(

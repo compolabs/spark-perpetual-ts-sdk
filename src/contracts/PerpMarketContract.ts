@@ -79,41 +79,20 @@ export class PerpMarketContract {
   async fulfillOrderM(
     baseSize: BN,
     orderId: string,
-  ): Promise<[string, string, BN, BN]> {
+  ): Promise<WriteTransactionResponse> {
     const baseSizeI64 = createI64Input(baseSize);
-    const { value } = await this.contract.functions
-      .fulfill_order_m(baseSizeI64, orderId)
-      .get();
+    const tx = this.contract.functions.fulfill_order_m(baseSizeI64, orderId);
 
-    const result: [string, string, BN, BN] = [
-      value[0].Address?.bits ?? value[0].ContractId?.bits ?? "",
-      value[1].bits,
-      fuelBNToBN(value[2]),
-      fuelBNToBN(value[3]),
-    ];
-
-    return result;
+    return sendTransaction(tx);
   }
 
   async matchOrdersM(
     order1Id: string,
     order2Id: string,
-  ): Promise<[string, string, string, string, string, BN, BN]> {
-    const { value } = await this.contract.functions
-      .match_orders_m(order1Id, order2Id)
-      .get();
+  ): Promise<WriteTransactionResponse> {
+    const tx = this.contract.functions.match_orders_m(order1Id, order2Id);
 
-    const result: [string, string, string, string, string, BN, BN] = [
-      value[0],
-      value[1],
-      value[2].Address?.bits ?? value[3].ContractId?.bits ?? "",
-      value[3].Address?.bits ?? value[3].ContractId?.bits ?? "",
-      value[4].bits,
-      fuelBNToBN(value[5]),
-      fuelBNToBN(value[6]),
-    ];
-
-    return result;
+    return sendTransaction(tx);
   }
 
   async openOrderM(
@@ -121,15 +100,18 @@ export class PerpMarketContract {
     baseToken: string,
     baseSize: BN,
     price: BN,
-  ): Promise<string> {
+  ): Promise<WriteTransactionResponse> {
     const traderInput = createAddressIdentity(trader);
     const baseTokenInput = createAssetIdInput(baseToken);
     const baseSizeI64 = createI64Input(baseSize);
-    const { value } = await this.contract.functions
-      .open_order_m(traderInput, baseTokenInput, baseSizeI64, price.toString())
-      .get();
+    const tx = this.contract.functions.open_order_m(
+      traderInput,
+      baseTokenInput,
+      baseSizeI64,
+      price.toString(),
+    );
 
-    return value;
+    return sendTransaction(tx);
   }
 
   async pauseMarketM(baseToken: string): Promise<WriteTransactionResponse> {

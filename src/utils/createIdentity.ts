@@ -1,4 +1,5 @@
-import { Address, BN as FuelBN } from "fuels";
+import { Address, BN as FuelBN, CoinQuantityLike } from "fuels";
+import { Deposit } from "src/interface";
 
 import BN from "./BN";
 
@@ -61,4 +62,11 @@ export const fuelBNToBN = (amount?: FuelBN): BN => {
   if (!amount) return BN.ZERO;
 
   return new BN(amount.toString());
+};
+
+export const createForward = (deposit: Deposit): CoinQuantityLike => {
+  return {
+    amount: deposit.amount.toString(),
+    assetId: deposit.token,
+  };
 };
