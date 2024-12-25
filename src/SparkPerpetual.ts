@@ -3,6 +3,7 @@ import {
   Account,
   Provider,
   Wallet,
+  WalletLocked,
   WalletUnlocked,
 } from "fuels";
 
@@ -43,6 +44,10 @@ export class SparkPerpetual {
   private async getReadOptions(): Promise<Options> {
     const providerWallet = await this.getProviderWallet();
     return { ...this.options, wallet: providerWallet };
+  }
+
+  setActiveWallet(wallet?: WalletLocked | WalletUnlocked): void {
+    this.options.wallet = wallet;
   }
 
   private getWriteOptions(): Options {

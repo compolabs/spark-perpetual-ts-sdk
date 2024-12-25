@@ -1,15 +1,16 @@
 import { AbstractAddress, Account, Provider } from "fuels";
-import { Deposit, WriteTransactionResponse } from "src/interface";
-import { Vault } from "src/types/vault/Vault";
-import BN from "src/utils/BN";
+
+import { Deposit, WriteTransactionResponse } from "@src/interface";
+import { Vault } from "@src/types/vault";
+import BN from "@src/utils/BN";
 import {
   createAddressIdentity,
   createAssetIdInput,
   createForward,
   createI64Input,
   fuelBNToBN,
-} from "src/utils/createIdentity";
-import { sendTransaction } from "src/utils/sendTransaction";
+} from "@src/utils/createIdentity";
+import { sendTransaction } from "@src/utils/sendTransaction";
 
 export class VaultContract {
   private contract: Vault;

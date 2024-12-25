@@ -8,8 +8,9 @@ import {
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { getMainDefinition } from "@apollo/client/utilities";
 import { createClient } from "graphql-ws";
-import { GraphClientConfig } from "src/interface";
 import { Nullable } from "tsdef";
+
+import { GraphClientConfig } from "@src/interface";
 
 export class GraphClient {
   client: ApolloClient<NormalizedCacheObject>;

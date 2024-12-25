@@ -1,12 +1,13 @@
 import { AbstractAddress, Account, Provider } from "fuels";
+
 import {
   createAddressIdentity,
   createAssetIdInput,
   createI64Input,
   fuelBNToBN,
   i64ToBN,
-} from "src/utils/createIdentity";
-import { sendTransaction } from "src/utils/sendTransaction";
+} from "@src/utils/createIdentity";
+import { sendTransaction } from "@src/utils/sendTransaction";
 
 import { AccountBalance } from "../types/account-balance";
 import {

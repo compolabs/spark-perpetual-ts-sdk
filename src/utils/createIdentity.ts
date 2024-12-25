@@ -1,5 +1,6 @@
 import { Address, BN as FuelBN, CoinQuantityLike } from "fuels";
-import { Deposit } from "src/interface";
+
+import { Deposit } from "@src/interface";
 
 import BN from "./BN";
 

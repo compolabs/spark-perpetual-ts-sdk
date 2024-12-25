@@ -1,5 +1,6 @@
 import { gql, QueryOptions } from "@apollo/client";
-import { generateWhereFilter } from "src/utils/generateWhereFilter";
+
+import { generateWhereFilter } from "@src/utils/generateWhereFilter";
 
 import { GetActiveOrdersParams, GetOrdersParams } from "..";
 

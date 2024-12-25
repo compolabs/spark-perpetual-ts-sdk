@@ -1,14 +1,15 @@
 import { AbstractAddress, Account, Provider } from "fuels";
-import { WriteTransactionResponse } from "src/interface";
-import { ClearingHouse } from "src/types/clearing-house";
+
+import { WriteTransactionResponse } from "@src/interface";
+import { ClearingHouse } from "@src/types/clearing-house";
 import {
   createAddressIdentity,
   createAssetIdInput,
   createI64Input,
   fuelBNToBN,
   i64ToBN,
-} from "src/utils/createIdentity";
-import { sendTransaction } from "src/utils/sendTransaction";
+} from "@src/utils/createIdentity";
+import { sendTransaction } from "@src/utils/sendTransaction";
 
 import { BN } from "..";
 

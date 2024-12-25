@@ -1,21 +1,22 @@
 import { AbstractAddress, Account, Provider } from "fuels";
+import { Undefinable } from "tsdef";
+
 import {
   Market,
   MarketStatus,
   Order,
   Twap,
   WriteTransactionResponse,
-} from "src/interface";
-import { PerpMarket } from "src/types/perp-market";
+} from "@src/interface";
+import { PerpMarket } from "@src/types/perp-market";
 import {
   createAddressIdentity,
   createAssetIdInput,
   createI64Input,
   fuelBNToBN,
   i64ToBN,
-} from "src/utils/createIdentity";
-import { sendTransaction } from "src/utils/sendTransaction";
-import { Undefinable } from "tsdef";
+} from "@src/utils/createIdentity";
+import { sendTransaction } from "@src/utils/sendTransaction";
 
 import { BN } from "..";
 

@@ -1,5 +1,6 @@
 import type { FunctionInvocationScope } from "fuels";
-import { WriteTransactionResponse } from "src/interface";
+
+import { WriteTransactionResponse } from "@src/interface";
 
 export const sendTransaction = async (
   tx: FunctionInvocationScope,
