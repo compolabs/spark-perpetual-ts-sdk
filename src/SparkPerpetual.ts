@@ -69,7 +69,7 @@ export class SparkPerpetual {
       ? await this.getReadOptions()
       : this.getWriteOptions();
 
-    return new ContractClass(address, opts.wallet.provider);
+    return new ContractClass(address, opts.wallet);
   }
 
   async getAccountBalanceContract(

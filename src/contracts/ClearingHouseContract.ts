@@ -1,10 +1,11 @@
 import { AbstractAddress, Account, Provider } from "fuels";
 
-import { WriteTransactionResponse } from "@src/interface";
+import { Deposit, WriteTransactionResponse } from "@src/interface";
 import { ClearingHouse } from "@src/types/clearing-house";
 import {
   createAddressIdentity,
   createAssetIdInput,
+  createForward,
   createI64Input,
   fuelBNToBN,
   i64ToBN,
@@ -74,9 +75,15 @@ export class ClearingHouseContract {
     return sendTransaction(tx);
   }
 
-  async depositCollateralC(): Promise<WriteTransactionResponse> {
-    // TODO: Implement payable logic
-    const tx = this.contract.functions.deposit_collateral_c();
+  async depositCollateralC(
+    deposit: Deposit,
+  ): Promise<WriteTransactionResponse> {
+    const forward = createForward(deposit);
+
+    const tx = this.contract.functions
+      .deposit_collateral_c()
+      .callParams({ forward });
+
     return sendTransaction(tx);
   }
 
