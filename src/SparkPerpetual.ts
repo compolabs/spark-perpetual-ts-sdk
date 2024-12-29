@@ -1,3 +1,4 @@
+import { FetchResult, Observable } from "@apollo/client";
 import {
   AbstractAddress,
   Account,
@@ -14,19 +15,54 @@ import {
   PerpMarketContract,
   VaultContract,
 } from "./contracts";
-import { Options, OptionsSpark, SparkParams } from "./interface";
+import { IndexerApi } from "./IndexerApi";
+import {
+  ActiveOrderReturn,
+  GetActiveOrdersParams, GetOrdersParams, GetTradeOrderEventsParams,
+  GraphClientConfig,
+  Options,
+  OptionsSpark, Order,
+  OrderType,
+  SparkParams, TradeOrderEvent,
+} from "./interface";
 
 export class SparkPerpetual {
   private providerPromise: Promise<Provider>;
   private provider?: Provider;
   private options: OptionsSpark;
+  private indexerApi?: IndexerApi;
 
   constructor(params: SparkParams) {
     this.options = {
+      gasLimitMultiplier: "",
+      gasPrice: "",
       wallet: params.wallet,
+      contractAddresses: {
+        proxyMarket: "",
+        ...params.contractAddresses,
+      },
     };
 
+    // console.log('params', params)
+
     this.providerPromise = Provider.create(params.networkUrl);
+  }
+
+  private get activeIndexerApi(): IndexerApi {
+    if (!this.indexerApi) {
+      throw new Error("Please set the correct active indexer.");
+    }
+    return this.indexerApi;
+  }
+
+  setActiveMarket(contractAddress: string, indexer: GraphClientConfig): void {
+    this.options.contractAddresses.proxyMarket = contractAddress;
+
+    if (this.indexerApi) {
+      this.indexerApi.close();
+    }
+
+    this.indexerApi = new IndexerApi(indexer);
   }
 
   async getProvider(): Promise<Provider> {
@@ -98,5 +134,25 @@ export class SparkPerpetual {
     readonly = false,
   ): Promise<VaultContract> {
     return this.getContract(VaultContract, address, readonly);
+  }
+
+  // orderbook
+
+  subscribeActiveOrders<T extends OrderType>(
+    params: GetActiveOrdersParams,
+  ): Observable<FetchResult<ActiveOrderReturn<T>>> {
+    return this.activeIndexerApi.subscribeActiveOrders<T>(params);
+  }
+
+  subscribeOrders(
+    params: GetOrdersParams,
+  ): Observable<FetchResult<{ Order: Order[] }>> {
+    return this.activeIndexerApi.subscribeOrders(params);
+  }
+
+  subscribeTradeOrderEvents(
+      params: GetTradeOrderEventsParams,
+  ): Observable<FetchResult<{ TradeOrderEvent: TradeOrderEvent[] }>> {
+    return this.activeIndexerApi.subscribeTradeOrderEvents(params);
   }
 }

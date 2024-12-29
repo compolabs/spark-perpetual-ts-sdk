@@ -208,7 +208,7 @@ export class PerpMarketContract {
       return;
     }
 
-    const result: Order = {
+    const result: any = { // какой тут тип?
       id: value.id,
       trader: value.trader.Address?.bits ?? value.trader.ContractId?.bits ?? "",
       baseToken: value.base_token.bits,
@@ -238,7 +238,7 @@ export class PerpMarketContract {
       .get_trader_orders_m(traderInput, baseTokenInput)
       .get();
 
-    const result: Order[] = value.map((v) => ({
+    const result: any = value.map((v) => ({
       id: v.id,
       trader: v.trader.Address?.bits ?? v.trader.ContractId?.bits ?? "",
       baseToken: v.base_token.bits,

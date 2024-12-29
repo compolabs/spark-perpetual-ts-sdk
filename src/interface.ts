@@ -4,7 +4,6 @@ import BN from "./utils/BN";
 
 export interface OrderbookContracts {
   proxyMarket: string;
-  registry: string;
   multiAsset: string;
 }
 
@@ -14,7 +13,11 @@ export interface Asset {
   decimals: number;
 }
 
-interface BaseOptions {}
+interface BaseOptions {
+  contractAddresses: OrderbookContracts;
+  gasPrice: string;
+  gasLimitMultiplier: string;
+}
 
 export interface Options extends BaseOptions {
   wallet: WalletLocked | WalletUnlocked;
@@ -31,7 +34,15 @@ export interface GraphClientConfig {
 
 export interface SparkParams {
   networkUrl: string;
+  contractAddresses: Omit<OrderbookContracts, "proxyMarket">;
   wallet?: WalletLocked | WalletUnlocked;
+  gasPrice?: string;
+  gasLimitMultiplier?: string;
+}
+
+export interface GraphClientConfig {
+  httpUrl: string;
+  wsUrl: string;
 }
 
 export type WriteTransactionResponse = {
@@ -136,10 +147,17 @@ export interface Market {
 
 export interface Order {
   id: string;
-  trader: string;
+  db_write_timestamp: string;
+  contractTimestamp: string;
   baseToken: string;
   baseSize: BN;
   price: BN;
+  baseSizeI64: BN;
+  trader: string;
+  orderType: OrderType;
+  status: string;
+  market: string;
+  timestamp: string;
 }
 
 export interface Twap {

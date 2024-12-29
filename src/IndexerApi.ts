@@ -23,6 +23,16 @@ import {
 } from "./interface";
 
 export class IndexerApi extends GraphClient {
+  // new methods
+  subscribeActiveOrders = <T extends OrderType>(
+    params: GetActiveOrdersParams,
+  ): Observable<FetchResult<ActiveOrderReturn<T>>> => {
+    return this.client.subscribe<ActiveOrderReturn<T>>(
+      getActiveOrdersQuery("subscription", params),
+    );
+  };
+
+  // old methods perpetualSdk
   getOrders = (
     params: GetOrdersParams,
   ): Promise<ApolloQueryResult<{ Order: Order[] }>> => {
@@ -44,14 +54,6 @@ export class IndexerApi extends GraphClient {
   ): Promise<ApolloQueryResult<ActiveOrderReturn<T>>> => {
     return this.client.query<ActiveOrderReturn<T>>(
       getActiveOrdersQuery("query", params),
-    );
-  };
-
-  subscribeActiveOrders = <T extends OrderType>(
-    params: GetActiveOrdersParams,
-  ): Observable<FetchResult<ActiveOrderReturn<T>>> => {
-    return this.client.subscribe<ActiveOrderReturn<T>>(
-      getActiveOrdersQuery("subscription", params),
     );
   };
 

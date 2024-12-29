@@ -63,15 +63,16 @@ export const getActiveOrdersQuery = (
     ) {
       ${queryObject}(limit: $limit, offset: $offset, where: $where, order_by: { price: $priceOrder }) {
         id
-        asset
-        amount
-        initialAmount
-        orderType
-        price
-        status
-        user
-        timestamp
+        db_write_timestamp
+        contractTimestamp
+        baseSizeI64
+        baseSize
         market
+        orderType
+        status
+        timestamp
+        trader
+        price
       }
     }
   `;
