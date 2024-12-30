@@ -86,8 +86,8 @@ export interface GetActiveOrdersParams {
 }
 
 export type ActiveOrderReturn<T extends OrderType> = T extends OrderType.Buy
-  ? { ActiveBuyOrder: Order[] }
-  : { ActiveSellOrder: Order[] };
+  ? { ActiveBuyOrder: PerpOrder[] }
+  : { ActiveSellOrder: PerpOrder[] };
 
 export interface GetTradeOrderEventsParams {
   limit: number;

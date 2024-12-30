@@ -25,7 +25,7 @@ import {
   Options,
   OptionsSpark,
   Order,
-  OrderType,
+  OrderType, PerpOrder,
   SparkParams,
   TradeOrderEvent,
 } from "./interface";
@@ -140,7 +140,7 @@ export class SparkPerpetual {
 
   subscribeOrders(
     params: GetOrdersParams,
-  ): Observable<FetchResult<{ Order: Order[] }>> {
+  ): Observable<FetchResult<{ Order: PerpOrder[] }>> {
     return this.activeIndexerApi.subscribeOrders(params);
   }
 

@@ -15,7 +15,7 @@ import {
   GetOrdersParams,
   GetTradeOrderEventsParams,
   Order,
-  OrderType,
+  OrderType, PerpOrder,
   TradeOrderEvent,
   UserInfo,
   UserInfoParams,
@@ -43,8 +43,8 @@ export class IndexerApi extends GraphClient {
 
   subscribeOrders = (
     params: GetOrdersParams,
-  ): Observable<FetchResult<{ Order: Order[] }>> => {
-    return this.client.subscribe<{ Order: Order[] }>(
+  ): Observable<FetchResult<{ Order: Order[] | PerpOrder[] }>> => {
+    return this.client.subscribe<{ Order: Order[] | PerpOrder[] }>(
       getOrdersQuery("subscription", params),
     );
   };
