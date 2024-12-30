@@ -25,7 +25,8 @@ import {
   Options,
   OptionsSpark,
   Order,
-  OrderType, PerpOrder,
+  OrderType,
+  PerpOrder,
   SparkParams,
   TradeOrderEvent,
 } from "./interface";
