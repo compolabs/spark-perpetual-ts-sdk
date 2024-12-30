@@ -21,18 +21,29 @@ export const getOrdersQuery = (
     ) {
       Order(limit: $limit, offset: $offset, where: $where, order_by: { price: $priceOrder }) {
         id
-        asset
-        amount
-        initialAmount
         orderType
         price
         status
-        user
         timestamp
         market
+        trader
+        baseSize
+        baseSizeI64
+        contractTimestamp
+        db_write_timestamp
       }
     }
   `;
+  console.log("query", query);
+  console.log("213", {
+    query,
+    variables: {
+      limit,
+      offset: offsetInRange,
+      where: generateWhereFilter(restParams),
+      priceOrder,
+    },
+  });
 
   return {
     query,
