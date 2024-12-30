@@ -140,7 +140,7 @@ export class SparkPerpetual {
 
   subscribeOrders(
     params: GetOrdersParams,
-  ): Observable<FetchResult<{ Order: PerpOrder[] }>> {
+  ): Observable<FetchResult<{ Order: PerpOrder[] | Order[] }>> {
     return this.activeIndexerApi.subscribeOrders(params);
   }
 
