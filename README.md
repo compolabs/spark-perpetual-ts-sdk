@@ -122,3 +122,5 @@ async function main() {
 ## Contributing
 
 Contributions to improve the spark-orderbook-ts-sdk are welcome. Please feel free to fork the repository, make your changes, and submit a pull request.
+
+test
