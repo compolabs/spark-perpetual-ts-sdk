@@ -149,7 +149,6 @@ export interface Order {
 export interface PerpOrder {
   id: string;
   db_write_timestamp: string;
-  contractTimestamp: string;
   baseToken: string;
   baseSize: BN;
   price: BN;

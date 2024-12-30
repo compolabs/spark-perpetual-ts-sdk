@@ -66,10 +66,10 @@ export class IndexerApi extends GraphClient {
     const query = gql`
       subscription (
         $limit: Int!
-        $where: TradeOrderEvent_bool_exp
+        $where: TradeEvent_bool_exp
         $orderBy: order_by!
       ) {
-        TradeOrderEvent(
+        TradeEvent(
           limit: $limit
           where: $where
           order_by: { timestamp: $orderBy }

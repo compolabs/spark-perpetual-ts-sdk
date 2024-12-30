@@ -29,7 +29,6 @@ export const getOrdersQuery = (
         trader
         baseSize
         baseSizeI64
-        contractTimestamp
         db_write_timestamp
       }
     }
@@ -75,7 +74,6 @@ export const getActiveOrdersQuery = (
       ${queryObject}(limit: $limit, offset: $offset, where: $where, order_by: { price: $priceOrder }) {
         id
         db_write_timestamp
-        contractTimestamp
         baseSizeI64
         baseSize
         market
