@@ -18,12 +18,16 @@ import {
 import { IndexerApi } from "./IndexerApi";
 import {
   ActiveOrderReturn,
-  GetActiveOrdersParams, GetOrdersParams, GetTradeOrderEventsParams,
+  GetActiveOrdersParams,
+  GetOrdersParams,
+  GetTradeOrderEventsParams,
   GraphClientConfig,
   Options,
-  OptionsSpark, Order,
+  OptionsSpark,
+  Order,
   OrderType,
-  SparkParams, TradeOrderEvent,
+  SparkParams,
+  TradeOrderEvent,
 } from "./interface";
 
 export class SparkPerpetual {
@@ -151,7 +155,7 @@ export class SparkPerpetual {
   }
 
   subscribeTradeOrderEvents(
-      params: GetTradeOrderEventsParams,
+    params: GetTradeOrderEventsParams,
   ): Observable<FetchResult<{ TradeOrderEvent: TradeOrderEvent[] }>> {
     return this.activeIndexerApi.subscribeTradeOrderEvents(params);
   }

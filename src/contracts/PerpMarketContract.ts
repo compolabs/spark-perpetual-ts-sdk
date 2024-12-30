@@ -208,7 +208,7 @@ export class PerpMarketContract {
       return;
     }
 
-    const result: any = { // какой тут тип?
+    const result = {
       id: value.id,
       trader: value.trader.Address?.bits ?? value.trader.ContractId?.bits ?? "",
       baseToken: value.base_token.bits,
