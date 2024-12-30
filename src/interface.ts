@@ -153,6 +153,21 @@ export interface Order {
   price: BN;
 }
 
+export interface PerpOrder {
+  id: string;
+  db_write_timestamp: string;
+  contractTimestamp: string;
+  baseToken: string;
+  baseSize: BN;
+  price: BN;
+  baseSizeI64: BN;
+  trader: string;
+  orderType: OrderType;
+  status: string;
+  market: string;
+  timestamp: string;
+}
+
 export interface Twap {
   baseToken: string;
   span: BN;
