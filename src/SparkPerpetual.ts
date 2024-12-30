@@ -38,16 +38,8 @@ export class SparkPerpetual {
 
   constructor(params: SparkParams) {
     this.options = {
-      gasLimitMultiplier: "",
-      gasPrice: "",
       wallet: params.wallet,
-      contractAddresses: {
-        proxyMarket: "",
-        ...params.contractAddresses,
-      },
     };
-
-    // console.log('params', params)
 
     this.providerPromise = Provider.create(params.networkUrl);
   }
@@ -59,9 +51,7 @@ export class SparkPerpetual {
     return this.indexerApi;
   }
 
-  setActiveMarket(contractAddress: string, indexer: GraphClientConfig): void {
-    this.options.contractAddresses.proxyMarket = contractAddress;
-
+  setActiveMarket(indexer: GraphClientConfig): void {
     if (this.indexerApi) {
       this.indexerApi.close();
     }

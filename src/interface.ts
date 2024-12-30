@@ -13,11 +13,7 @@ export interface Asset {
   decimals: number;
 }
 
-interface BaseOptions {
-  contractAddresses: OrderbookContracts;
-  gasPrice: string;
-  gasLimitMultiplier: string;
-}
+interface BaseOptions {}
 
 export interface Options extends BaseOptions {
   wallet: WalletLocked | WalletUnlocked;
@@ -34,10 +30,7 @@ export interface GraphClientConfig {
 
 export interface SparkParams {
   networkUrl: string;
-  contractAddresses: Omit<OrderbookContracts, "proxyMarket">;
   wallet?: WalletLocked | WalletUnlocked;
-  gasPrice?: string;
-  gasLimitMultiplier?: string;
 }
 
 export interface GraphClientConfig {
